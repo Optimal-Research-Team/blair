@@ -34,7 +34,7 @@ export function PatientMatchBadge({
           {patientName || MATCH_STATUS_LABELS[status]}
         </span>
       </div>
-      {status === "matched" && confidence !== undefined && (
+      {confidence !== undefined && (
         <span className="text-[10px] text-muted-foreground ml-5">
           {confidence.toFixed(1)}% match
         </span>

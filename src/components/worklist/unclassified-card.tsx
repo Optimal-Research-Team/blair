@@ -1,0 +1,128 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { WorklistItem } from "@/types/worklist";
+import { SlaTimerCell } from "@/components/inbox/sla-timer-cell";
+import { formatRelativeTime } from "@/lib/format";
+import {
+  FileQuestion,
+  User,
+  FileText,
+  ChevronRight,
+  Lock,
+  Zap,
+  AlertTriangle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface UnclassifiedCardProps {
+  item: WorklistItem;
+  onOpen: (id: string) => void;
+  isLocked?: boolean;
+  lockedByName?: string;
+}
+
+export function UnclassifiedCard({
+  item,
+  onOpen,
+  isLocked,
+  lockedByName,
+}: UnclassifiedCardProps) {
+
+  const isSTAT = item.priority === "stat";
+  const isUrgent = item.priority === "urgent";
+  const isPriority = isSTAT || isUrgent;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4 pl-4 pr-4 py-3 transition-colors border-l-4",
+        isLocked && "opacity-50",
+        // Priority hierarchy: STAT > Urgent > Routine
+        isSTAT && "border-l-red-500 bg-red-50/80 hover:bg-red-100/80",
+        isUrgent && !isSTAT && "border-l-orange-400 bg-orange-50/60 hover:bg-orange-100/60",
+        // Non-priority unclassified: amber accent
+        !isPriority && "border-l-amber-400 hover:bg-muted/50"
+      )}
+    >
+      {/* Left: Main info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          {isSTAT && (
+            <Badge className="bg-red-600 text-white text-[10px] h-5 font-semibold">
+              <Zap className="h-3 w-3 mr-0.5" />
+              STAT
+            </Badge>
+          )}
+          {isUrgent && !isSTAT && (
+            <Badge className="bg-orange-500 text-white text-[10px] h-5 font-semibold">
+              <AlertTriangle className="h-3 w-3 mr-0.5" />
+              Urgent
+            </Badge>
+          )}
+          <span className="flex items-center gap-1 text-xs text-amber-700">
+            <FileQuestion className="h-3.5 w-3.5" />
+            <span className="font-medium">Unclassified</span>
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <SlaTimerCell deadline={item.slaDeadline} receivedAt={item.receivedAt} compact />
+        </div>
+
+        <p className={cn(
+          "text-sm mb-1.5 line-clamp-1",
+          isPriority ? "font-medium text-foreground" : "text-foreground"
+        )}>
+          {item.description}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {item.patientName && (
+            <span className="flex items-center gap-1">
+              <User className="h-3 w-3" />
+              {item.patientName}
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <FileText className="h-3 w-3" />
+            {item.pageCount}p
+          </span>
+          <span>{formatRelativeTime(item.receivedAt)}</span>
+          {item.suggestedDocType && (
+            <>
+              <span className="text-border">·</span>
+              <span className="flex items-center gap-1">
+                AI: {item.suggestedDocType}
+                <span className="font-medium">
+                  {item.suggestedDocTypeConfidence}%
+                </span>
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Right: Actions */}
+      <div className="flex items-center gap-3 shrink-0">
+        {isLocked ? (
+          <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+            <Lock className="h-3 w-3" />
+            <span>{lockedByName}</span>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            onClick={() => onOpen(item.faxId)}
+            className={cn(
+              "h-8",
+              isPriority && "bg-primary hover:bg-primary/90"
+            )}
+          >
+            Review
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}

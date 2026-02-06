@@ -28,25 +28,73 @@ import {
   Scissors,
   Lock,
   Unlock,
+  Bot,
+  Loader2,
+  ArrowRight,
 } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface ReviewPanelProps {
   fax: Fax;
 }
 
 export function ReviewPanel({ fax }: ReviewPanelProps) {
+  const router = useRouter();
   const [docType, setDocType] = useState(fax.documentType);
   const [priority, setPriority] = useState(fax.priority);
   const [notes, setNotes] = useState(fax.notes || "");
   const [description, setDescription] = useState(fax.description || "");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Check if this is a referral type
+  const isReferralType = docType === "Referral" || docType === "Referral Form";
+  const wasOriginallyReferral = fax.documentType === "Referral" || fax.documentType === "Referral Form";
+  const isNewReferralClassification = isReferralType && !wasOriginallyReferral;
 
   const handleSave = () => {
     toast.success("Review saved successfully");
   };
 
   const handleComplete = () => {
-    toast.success("Fax marked as completed and filed");
+    if (isReferralType) {
+      // Referrals go through AI processing
+      handleSubmitForAIProcessing();
+    } else {
+      toast.success("Fax marked as completed and filed", {
+        description: `Filed as ${docType}`,
+      });
+      // Navigate back to inbox after short delay
+      setTimeout(() => router.push("/inbox"), 1500);
+    }
+  };
+
+  const handleSubmitForAIProcessing = () => {
+    setIsProcessing(true);
+
+    // Show processing toast with promise pattern
+    toast.promise(
+      new Promise((resolve) => {
+        // Simulate AI processing delay
+        setTimeout(() => {
+          resolve(true);
+        }, 2000);
+      }),
+      {
+        loading: (
+          <div className="flex items-center gap-2">
+            <Bot className="h-4 w-4 animate-pulse" />
+            <span>Sending to AI for referral extraction...</span>
+          </div>
+        ),
+        success: () => {
+          // Navigate to worklist after success
+          setTimeout(() => router.push("/worklist"), 500);
+          return "Referral submitted for AI processing — will appear in worklist if human intervention required";
+        },
+        error: "Failed to submit for processing",
+      }
+    );
   };
 
   const handleSendComm = () => {
@@ -189,28 +237,66 @@ export function ReviewPanel({ fax }: ReviewPanelProps) {
 
       {/* Actions */}
       <div className="border-t p-3 space-y-2 bg-muted/20">
-        <Button className="w-full h-9" onClick={handleSave}>
+        {/* Show AI processing info for referrals */}
+        {isReferralType && (
+          <div className="flex items-start gap-2 p-2 bg-blue-50 border border-blue-200 rounded-md mb-2">
+            <Bot className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+            <div className="text-xs text-blue-800">
+              <span className="font-medium">Referral detected.</span>{" "}
+              Completing will send this to AI for automatic extraction of patient info, physician details, and clinical data.
+            </div>
+          </div>
+        )}
+
+        <Button className="w-full h-9" onClick={handleSave} disabled={isProcessing}>
           <Save className="h-4 w-4 mr-2" />
           Save Review
         </Button>
+
         <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            className="h-9 text-xs"
-            onClick={handleComplete}
-          >
-            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-            Complete
-          </Button>
-          <Button
-            variant="outline"
-            className="h-9 text-xs"
-            onClick={handleSendComm}
-          >
-            <Send className="h-3.5 w-3.5 mr-1" />
-            Communicate
-          </Button>
+          {isReferralType ? (
+            <Button
+              className="h-9 text-xs bg-blue-600 hover:bg-blue-700 col-span-2"
+              onClick={handleComplete}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Bot className="h-3.5 w-3.5 mr-1" />
+                  Send to AI Processing
+                  <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </>
+              )}
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                className="h-9 text-xs"
+                onClick={handleComplete}
+                disabled={isProcessing}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                Complete & File
+              </Button>
+              <Button
+                variant="outline"
+                className="h-9 text-xs"
+                onClick={handleSendComm}
+                disabled={isProcessing}
+              >
+                <Send className="h-3.5 w-3.5 mr-1" />
+                Communicate
+              </Button>
+            </>
+          )}
         </div>
+
         {fax.pageCount > 1 && (
           <Button variant="secondary" className="w-full h-9 text-xs" asChild>
             <a href={`/split/${fax.id}`}>

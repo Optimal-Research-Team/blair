@@ -1,16 +1,17 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { mockFaxes } from "@/data/mock-faxes";
+import { currentUser } from "@/data/mock-staff";
 import { PageThumbnail } from "@/components/fax-viewer/page-thumbnail";
 import { FaxPageViewer } from "@/components/fax-viewer/fax-page-viewer";
 import { ReviewPanel } from "@/components/fax-viewer/review-panel";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { SlaTimerCell } from "@/components/inbox/sla-timer-cell";
 import { PriorityBadge } from "@/components/inbox/priority-badge";
-import { mockStaff } from "@/data/mock-staff";
+import { useLockStore } from "@/stores/use-lock-store";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,6 +21,20 @@ export default function FaxDetailPage({ params }: Props) {
   const { id } = use(params);
   const fax = mockFaxes.find((f) => f.id === id);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+
+  const { lockDocument, unlockDocument, isLockedByOther, getLockedByUser } = useLockStore();
+  const lockedByOther = isLockedByOther(id);
+  const lockedUser = getLockedByUser(id);
+
+  // Auto-lock on mount, unlock on unmount
+  useEffect(() => {
+    if (fax && !lockedByOther) {
+      lockDocument(id);
+    }
+    return () => {
+      unlockDocument(id);
+    };
+  }, [id, fax, lockDocument, unlockDocument, lockedByOther]);
 
   if (!fax) {
     return (
@@ -35,12 +50,19 @@ export default function FaxDetailPage({ params }: Props) {
     );
   }
 
-  const lockedUser = fax.lockedBy
-    ? mockStaff.find((s) => s.id === fax.lockedBy)
-    : null;
-
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {/* Lock warning banner when another user has document */}
+      {lockedByOther && lockedUser && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{lockedUser.name}</strong> is currently working on this document.
+            Changes you make may conflict with their work.
+          </span>
+        </div>
+      )}
+
       {/* Header bar */}
       <div className="flex items-center justify-between border-b px-4 py-2 bg-card shrink-0">
         <div className="flex items-center gap-3">
@@ -60,10 +82,11 @@ export default function FaxDetailPage({ params }: Props) {
             />
           )}
         </div>
-        {lockedUser && (
-          <div className="flex items-center gap-1.5 text-amber-600 text-xs">
+        {/* Show lock status */}
+        {!lockedByOther && (
+          <div className="flex items-center gap-1.5 text-emerald-600 text-xs">
             <Lock className="h-3 w-3" />
-            <span>Locked by {lockedUser.name}</span>
+            <span>Locked by you</span>
           </div>
         )}
       </div>

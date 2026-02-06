@@ -44,13 +44,15 @@ export const useReferralStore = create<ReferralState>((set) => ({
       referrals: state.referrals.map((r) => {
         if (r.id !== referralId) return r;
         const items = r.completenessItems.map((item) =>
-          item.id === itemId ? { ...item, present: !item.present } : item
+          item.id === itemId
+            ? { ...item, status: item.status === "found" ? "missing" as const : "found" as const }
+            : item
         );
         const requiredItems = items.filter((i) => i.required);
         const score =
           requiredItems.length > 0
             ? Math.round(
-                (requiredItems.filter((i) => i.present).length /
+                (requiredItems.filter((i) => i.status === "found").length /
                   requiredItems.length) *
                   100
               )

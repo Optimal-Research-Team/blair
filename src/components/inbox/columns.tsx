@@ -2,99 +2,67 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Fax } from "@/types";
-import { Checkbox } from "@/components/ui/checkbox";
 import { PriorityBadge } from "./priority-badge";
 import { StatusBadge } from "./status-badge";
 import { SlaTimerCell } from "./sla-timer-cell";
-import { ConfidenceBar } from "./confidence-bar";
 import { PatientMatchBadge } from "./patient-match-badge";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format";
-import { Lock, FileText } from "lucide-react";
-import { mockStaff } from "@/data/mock-staff";
-import { Button } from "@/components/ui/button";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { LockIndicator } from "./lock-indicator";
 
 export const columns: ColumnDef<Fax>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-        className="translate-y-[2px]"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-        className="translate-y-[2px]"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-    size: 40,
-  },
   {
     accessorKey: "receivedAt",
     header: "Received",
     cell: ({ row }) => (
-      <div className="flex flex-col">
-        <span className="text-sm text-foreground">
-          {formatRelativeTime(row.original.receivedAt)}
-        </span>
-        <span className="text-[11px] text-muted-foreground">
-          {row.original.pageCount} {row.original.pageCount === 1 ? "page" : "pages"}
-        </span>
+      <div className="text-xs">
+        <span className="text-foreground">{formatRelativeTime(row.original.receivedAt)}</span>
+        <span className="text-muted-foreground ml-1">· {row.original.pageCount}p</span>
       </div>
     ),
-    size: 130,
+    size: 120,
   },
   {
     accessorKey: "priority",
     header: "Priority",
     cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
-    size: 110,
+    size: 100,
   },
   {
     accessorKey: "senderName",
     header: "From",
     cell: ({ row }) => (
-      <div className="flex flex-col">
-        <span className="text-sm font-medium truncate max-w-[180px]">
+      <div className="text-xs">
+        <span className="font-medium text-foreground truncate block max-w-[160px]">
           {row.original.senderName}
         </span>
-        <span className="text-[11px] text-muted-foreground">
-          {row.original.senderFaxNumber.replace(
-            /(\d{3})(\d{3})(\d{4})/,
-            "($1) $2-$3"
-          )}
+        <span className="text-muted-foreground">
+          {row.original.senderFaxNumber.replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3")}
         </span>
       </div>
     ),
-    size: 200,
+    size: 180,
   },
   {
     accessorKey: "documentType",
-    header: "Document Type",
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium truncate max-w-[160px]">
-          {row.original.documentType}
-        </span>
-        <ConfidenceBar
-          confidence={row.original.documentTypeConfidence}
-        />
-      </div>
-    ),
+    header: "Document",
+    cell: ({ row }) => {
+      const confidence = row.original.documentTypeConfidence;
+      return (
+        <div className="text-xs">
+          <span className="font-medium truncate block max-w-[140px]">{row.original.documentType}</span>
+          <span className="text-[10px] text-muted-foreground">
+            {confidence}% confidence
+          </span>
+        </div>
+      );
+    },
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
-    size: 200,
+    size: 160,
   },
   {
     accessorKey: "patientName",
@@ -106,53 +74,48 @@ export const columns: ColumnDef<Fax>[] = [
         confidence={row.original.patientMatchConfidence}
       />
     ),
-    size: 170,
+    size: 150,
   },
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <StatusBadge status={row.original.status} />
-        {row.original.lockedBy && (
-          <div className="flex items-center gap-1 text-amber-600" title={`Locked by ${mockStaff.find(s => s.id === row.original.lockedBy)?.name || 'Unknown'}`}>
-            <Lock className="h-3 w-3" />
-          </div>
-        )}
+        <LockIndicator documentId={row.original.id} />
       </div>
     ),
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
-    size: 150,
+    size: 130,
   },
   {
     accessorKey: "slaDeadline",
     header: "SLA",
     cell: ({ row }) => {
       if (row.original.status === "completed" || row.original.status === "auto-filed") {
-        return (
-          <span className="text-xs text-muted-foreground">Completed</span>
-        );
+        return <span className="text-xs text-muted-foreground">—</span>;
       }
       return (
         <SlaTimerCell
           deadline={row.original.slaDeadline}
           receivedAt={row.original.receivedAt}
+          compact
         />
       );
     },
-    size: 130,
+    size: 100,
   },
   {
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <Button variant="ghost" size="sm" asChild className="h-8 px-2">
-        <Link href={`/fax/${row.original.id}`}>
-          <FileText className="h-4 w-4 mr-1" />
-          View
-        </Link>
-      </Button>
+      <Link
+        href={`/fax/${row.original.id}`}
+        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5"
+      >
+        View <ChevronRight className="h-3 w-3" />
+      </Link>
     ),
-    size: 80,
+    size: 60,
   },
 ];

@@ -17,7 +17,7 @@ export const STATUS_COLORS = {
 
 export const STATUS_LABELS = {
   "auto-filed": "Auto-Filed",
-  "pending-review": "Pending Review",
+  "pending-review": "Needs Review",
   "in-progress": "In Progress",
   flagged: "Flagged",
   completed: "Completed",

@@ -5,6 +5,7 @@ export const mockTemplates: CommunicationTemplate[] = [
     id: "tmpl-1",
     name: "Referral Received Confirmation",
     type: "referral-received",
+    channel: "fax",
     subject: "Referral Received - {{patientName}}",
     body: `Dear Dr. {{referringPhysicianName}},
 
@@ -30,6 +31,7 @@ Referral Intake Team`,
     id: "tmpl-2",
     name: "Missing Items Request",
     type: "missing-items",
+    channel: "fax",
     subject: "Additional Information Required - Referral for {{patientName}}",
     body: `Dear Dr. {{referringPhysicianName}},
 
@@ -56,6 +58,7 @@ Referral Intake Team`,
     id: "tmpl-3",
     name: "Referral Declined",
     type: "decline",
+    channel: "fax",
     subject: "Referral Declined - {{patientName}}",
     body: `Dear Dr. {{referringPhysicianName}},
 
@@ -78,6 +81,7 @@ Sunnybrook Schulich Heart Centre`,
     id: "tmpl-4",
     name: "Appointment Confirmation",
     type: "appointment-confirmation",
+    channel: "fax",
     subject: "Appointment Confirmed - {{patientName}} on {{appointmentDate}}",
     body: `Dear Dr. {{referringPhysicianName}},
 
@@ -105,6 +109,7 @@ Sunnybrook Schulich Heart Centre`,
     id: "tmpl-5",
     name: "Follow-Up Reminder",
     type: "follow-up-reminder",
+    channel: "fax",
     subject: "Reminder: Outstanding Items for Referral - {{patientName}}",
     body: `Dear Dr. {{referringPhysicianName}},
 
@@ -124,5 +129,24 @@ Referral Intake Team`,
     triggerEvent: "referral.followup_due",
     isActive: true,
     variables: ["patientName", "patientDOB", "referringPhysicianName", "referralId", "missingItemsList", "reminderNumber", "originalRequestDate", "remainingDays"],
+  },
+  {
+    id: "tmpl-6",
+    name: "Voice Follow-Up Script",
+    type: "follow-up-reminder",
+    channel: "voice",
+    subject: "Voice Follow-Up Call",
+    body: "Automated voice follow-up script for missing items",
+    voiceScript: `Hello, this is an automated call from Sunnybrook Schulich Heart Centre regarding a referral for patient {{patientName}}.
+
+We previously sent a fax requesting additional documentation. We are still waiting for the following items: {{missingItemsList}}.
+
+Please fax these documents to (416) 555-0101 at your earliest convenience.
+
+If you have questions, please call our referral intake line at (416) 555-0100.
+
+Thank you. Goodbye.`,
+    isActive: true,
+    variables: ["patientName", "missingItemsList"],
   },
 ];

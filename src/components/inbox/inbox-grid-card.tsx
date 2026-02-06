@@ -1,17 +1,12 @@
 "use client";
 
 import { Fax } from "@/types";
-import { Card, CardContent } from "@/components/ui/card";
-import { PriorityBadge } from "./priority-badge";
-import { StatusBadge } from "./status-badge";
-import { SlaTimerCell } from "./sla-timer-cell";
-import { ConfidenceBar } from "./confidence-bar";
-import { PatientMatchBadge } from "./patient-match-badge";
 import { formatRelativeTime } from "@/lib/format";
-import { Lock, FileText, FileIcon } from "lucide-react";
+import { Lock, FileText, User, Zap, AlertTriangle, Eye, CheckCircle2, Flag, Clock } from "lucide-react";
 import { mockStaff } from "@/data/mock-staff";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useSlaTimer } from "@/hooks/use-sla-timer";
 
 interface InboxGridCardProps {
   fax: Fax;
@@ -21,85 +16,140 @@ export function InboxGridCard({ fax }: InboxGridCardProps) {
   const lockedUser = fax.lockedBy
     ? mockStaff.find((s) => s.id === fax.lockedBy)
     : null;
-  const isActive =
-    fax.status !== "completed" && fax.status !== "auto-filed";
+  const isActive = fax.status !== "completed" && fax.status !== "auto-filed";
+  const { timeRemaining, status: slaStatus, isBreached } = useSlaTimer(fax.slaDeadline, fax.receivedAt);
+
+  const needsAction = fax.status === "pending-review" || fax.status === "flagged";
+  const isResolved = fax.status === "completed" || fax.status === "auto-filed";
+
+  // Confidence indicator
+  const confidenceLevel = fax.documentTypeConfidence >= 90 ? "high" : fax.documentTypeConfidence >= 70 ? "medium" : "low";
 
   return (
-    <Link href={`/fax/${fax.id}`}>
-      <Card
+    <Link href={`/fax/${fax.id}`} className="block group">
+      <div
         className={cn(
-          "group hover:shadow-md transition-all cursor-pointer border",
-          fax.priority === "stat" && "border-l-4 border-l-red-500",
-          fax.priority === "urgent" && "border-l-4 border-l-amber-500",
-          fax.lockedBy && "ring-1 ring-amber-300"
+          "relative rounded-lg border transition-all",
+          // Base states
+          isResolved && "bg-gray-50/80 border-gray-200",
+          needsAction && "bg-white border-gray-200 shadow-sm hover:shadow-md",
+          fax.status === "in-progress" && "bg-white border-purple-200 shadow-sm",
+          // Priority overrides
+          fax.priority === "stat" && !isResolved && "bg-red-50 border-red-200 shadow-sm hover:shadow-md",
+          fax.priority === "urgent" && !isResolved && "bg-orange-50 border-orange-200 shadow-sm hover:shadow-md",
         )}
       >
-        <CardContent className="p-4 space-y-3">
-          {/* Header row */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <PriorityBadge priority={fax.priority} />
+        {/* Top accent bar for priority items */}
+        {fax.priority !== "routine" && !isResolved && (
+          <div className={cn(
+            "absolute inset-x-0 top-0 h-0.5 rounded-t-lg",
+            fax.priority === "stat" ? "bg-red-500" : "bg-orange-400"
+          )} />
+        )}
+
+        {/* Card content */}
+        <div className="px-3 py-2.5">
+          {/* Header: Priority/Status indicator + Time */}
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium">
+              {fax.priority === "stat" && (
+                <span className="inline-flex items-center gap-0.5 text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
+                  <Zap className="h-3 w-3" />
+                  STAT
+                </span>
+              )}
+              {fax.priority === "urgent" && (
+                <span className="inline-flex items-center gap-0.5 text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded">
+                  <AlertTriangle className="h-3 w-3" />
+                  Urgent
+                </span>
+              )}
+              {fax.status === "auto-filed" && (
+                <span className="inline-flex items-center gap-0.5 text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Auto-filed
+                </span>
+              )}
+              {fax.status === "flagged" && (
+                <span className="inline-flex items-center gap-0.5 text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
+                  <Flag className="h-3 w-3" />
+                  Flagged
+                </span>
+              )}
+              {fax.status === "in-progress" && (
+                <span className="inline-flex items-center gap-0.5 text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
+                  <Clock className="h-3 w-3" />
+                  In Progress
+                </span>
+              )}
               {fax.lockedBy && (
-                <div
-                  className="flex items-center gap-1 text-amber-600 text-xs"
-                  title={`Locked by ${lockedUser?.name}`}
-                >
+                <span className="inline-flex items-center gap-0.5 text-amber-700">
                   <Lock className="h-3 w-3" />
-                  <span className="hidden sm:inline">{lockedUser?.initials}</span>
-                </div>
+                  {lockedUser?.initials}
+                </span>
               )}
             </div>
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {formatRelativeTime(fax.receivedAt)}
-            </span>
+            <span className="text-[11px] text-gray-500">{formatRelativeTime(fax.receivedAt)}</span>
           </div>
 
-          {/* Sender */}
-          <div>
-            <p className="text-sm font-medium truncate">{fax.senderName}</p>
-            <p className="text-xs text-muted-foreground">
-              {fax.pageCount} {fax.pageCount === 1 ? "page" : "pages"}
-            </p>
-          </div>
+          {/* Sender - main content */}
+          <p className={cn(
+            "text-[13px] font-medium leading-snug truncate",
+            isResolved ? "text-gray-600" : "text-gray-900"
+          )}>
+            {fax.senderName}
+          </p>
 
-          {/* Document type + confidence */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <FileIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium truncate">
-                {fax.documentType}
+          {/* Doc type + Patient in single dense row */}
+          <div className="flex items-center gap-2 mt-1 text-[11px]">
+            <span className="flex items-center gap-1 text-gray-500 min-w-0">
+              <FileText className="h-3 w-3 shrink-0" />
+              <span className="truncate">{fax.documentType}</span>
+              <span className={cn(
+                "shrink-0 font-medium",
+                confidenceLevel === "high" ? "text-emerald-600" :
+                confidenceLevel === "medium" ? "text-gray-600" : "text-amber-600"
+              )}>
+                {fax.documentTypeConfidence}%
               </span>
-            </div>
-            <ConfidenceBar confidence={fax.documentTypeConfidence} />
-          </div>
-
-          {/* Patient */}
-          <PatientMatchBadge
-            status={fax.patientMatchStatus}
-            patientName={fax.patientName}
-            confidence={fax.patientMatchConfidence}
-          />
-
-          {/* Description */}
-          {fax.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {fax.description}
-            </p>
-          )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-1 border-t">
-            <StatusBadge status={fax.status} />
-            {isActive && (
-              <SlaTimerCell
-                deadline={fax.slaDeadline}
-                receivedAt={fax.receivedAt}
-                compact
-              />
+            </span>
+            {fax.patientName && (
+              <>
+                <span className="text-gray-300">·</span>
+                <span className={cn(
+                  "flex items-center gap-1 min-w-0",
+                  fax.patientMatchStatus === "matched" ? "text-gray-600" :
+                  fax.patientMatchStatus === "not-found" ? "text-red-600" : "text-amber-600"
+                )}>
+                  <User className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{fax.patientName}</span>
+                </span>
+              </>
             )}
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Footer: Only show for active items - SLA timer */}
+          {isActive && (
+            <div className={cn(
+              "mt-2 pt-2 border-t flex items-center justify-between text-[11px]",
+              isBreached ? "border-red-200" : "border-gray-100"
+            )}>
+              <span className="text-gray-500">
+                {fax.status === "pending-review" ? "Needs review" :
+                 fax.status === "in-progress" ? "Being processed" : "Requires attention"}
+              </span>
+              <span className={cn(
+                "font-semibold tabular-nums",
+                isBreached ? "text-red-600" :
+                slaStatus === "red" ? "text-red-600" :
+                slaStatus === "yellow" ? "text-amber-600" : "text-emerald-600"
+              )}>
+                {isBreached ? `${timeRemaining} overdue` : timeRemaining}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
     </Link>
   );
 }

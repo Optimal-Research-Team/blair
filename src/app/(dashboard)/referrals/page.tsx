@@ -22,9 +22,11 @@ import { cn } from "@/lib/utils";
 import { ReferralStatus } from "@/types";
 
 const STATUS_CONFIG: Record<ReferralStatus, { label: string; icon: React.ElementType; color: string }> = {
-  received: { label: "Received", icon: Clock, color: "bg-blue-100 text-blue-700" },
+  triage: { label: "Triage", icon: Clock, color: "bg-gray-100 text-gray-700" },
   incomplete: { label: "Incomplete", icon: AlertTriangle, color: "bg-amber-100 text-amber-700" },
+  "pending-response": { label: "Pending Response", icon: Clock, color: "bg-blue-100 text-blue-700" },
   complete: { label: "Complete", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-700" },
+  routed: { label: "Routed", icon: ArrowRight, color: "bg-indigo-100 text-indigo-700" },
   accepted: { label: "Accepted", icon: CheckCircle2, color: "bg-green-100 text-green-700" },
   declined: { label: "Declined", icon: XCircle, color: "bg-red-100 text-red-700" },
   booked: { label: "Booked", icon: Calendar, color: "bg-purple-100 text-purple-700" },
@@ -112,10 +114,11 @@ export default function ReferralsPage() {
                           key={item.id}
                           className={cn(
                             "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded",
-                            item.present ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+                            item.status === "found" ? "bg-emerald-50 text-emerald-700" :
+                            item.status === "uncertain" ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"
                           )}
                         >
-                          {item.present ? "✓" : "✗"} {item.label}
+                          {item.status === "found" ? "✓" : item.status === "uncertain" ? "?" : "✗"} {item.label}
                         </span>
                       ))}
                     </div>

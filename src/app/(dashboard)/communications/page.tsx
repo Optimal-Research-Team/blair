@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { mockCommunications } from "@/data/mock-communications";
 import { mockTemplates } from "@/data/mock-templates";
+import { mockReferrals } from "@/data/mock-referrals";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -16,23 +19,27 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  AlertCircle,
+  AlertTriangle,
   FileText,
   Mail,
   Printer,
   Eye,
   RotateCcw,
   Bell,
+  ArrowUpRight,
+  X,
+  User,
 } from "lucide-react";
 import { CommunicationStatus, CommunicationType } from "@/types";
 
 const STATUS_CONFIG: Record<CommunicationStatus, { label: string; icon: React.ElementType; color: string }> = {
-  draft: { label: "Draft", icon: FileText, color: "bg-gray-100 text-gray-700" },
+  scheduled: { label: "Scheduled", icon: Clock, color: "bg-gray-100 text-gray-700" },
   sent: { label: "Sent", icon: Send, color: "bg-blue-100 text-blue-700" },
-  delivered: { label: "Delivered", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-700" },
+  awaiting: { label: "Awaiting Response", icon: Clock, color: "bg-amber-100 text-amber-700" },
+  received: { label: "Response Received", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-700" },
+  escalated: { label: "Escalated", icon: AlertTriangle, color: "bg-orange-100 text-orange-700" },
   failed: { label: "Failed", icon: XCircle, color: "bg-red-100 text-red-700" },
-  "pending-response": { label: "Awaiting Response", icon: Clock, color: "bg-amber-100 text-amber-700" },
-  "response-received": { label: "Response Received", icon: CheckCircle2, color: "bg-green-100 text-green-700" },
+  closed: { label: "Closed", icon: CheckCircle2, color: "bg-gray-100 text-gray-700" },
 };
 
 const TYPE_CONFIG: Record<CommunicationType, { label: string; color: string }> = {
@@ -45,19 +52,53 @@ const TYPE_CONFIG: Record<CommunicationType, { label: string; color: string }> =
 };
 
 export default function CommunicationsPage() {
-  const [selectedComm, setSelectedComm] = useState(mockCommunications[0]);
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64">Loading communications...</div>}>
+      <CommunicationsPageContent />
+    </Suspense>
+  );
+}
 
-  const pendingFollowUps = mockCommunications.filter(
-    (c) => c.followUpDueAt && c.status !== "response-received"
+function CommunicationsPageContent() {
+  const searchParams = useSearchParams();
+  const referralIdFilter = searchParams.get("referralId");
+
+  // Get the referral if we're filtering by one
+  const filteredReferral = referralIdFilter
+    ? mockReferrals.find((r) => r.id === referralIdFilter)
+    : null;
+
+  // Filter communications based on referralId query param
+  const filteredCommunications = useMemo(() => {
+    if (!referralIdFilter) return mockCommunications;
+    return mockCommunications.filter((c) => c.referralId === referralIdFilter);
+  }, [referralIdFilter]);
+
+  const [selectedComm, setSelectedComm] = useState(filteredCommunications[0]);
+
+  const pendingFollowUps = filteredCommunications.filter(
+    (c) => c.status === "awaiting" || c.status === "scheduled"
   );
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Communications"
-        description="Outbound communication tracking and templates"
+        description={
+          filteredReferral
+            ? `Showing communications for ${filteredReferral.patientName}`
+            : "Outbound communication tracking and templates"
+        }
         action={
           <div className="flex items-center gap-3 text-sm">
+            {filteredReferral && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/communications">
+                  <X className="h-3 w-3 mr-1" />
+                  Clear Filter
+                </Link>
+              </Button>
+            )}
             <div className="flex items-center gap-1.5 text-amber-600">
               <Bell className="h-4 w-4" />
               <span className="font-semibold">{pendingFollowUps.length} pending follow-ups</span>
@@ -65,6 +106,35 @@ export default function CommunicationsPage() {
           </div>
         }
       />
+
+      {/* Referral context banner when filtering */}
+      {filteredReferral && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <User className="h-4 w-4 text-blue-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900">
+                    Referral: {filteredReferral.patientName}
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Referred by {filteredReferral.referringPhysicianName} · Status: {filteredReferral.status}
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="text-blue-700 border-blue-300 hover:bg-blue-100" asChild>
+                <Link href={`/referrals/${filteredReferral.id}`}>
+                  View Referral
+                  <ArrowUpRight className="h-3 w-3 ml-1" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="log">
         <TabsList>
@@ -77,7 +147,18 @@ export default function CommunicationsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* List */}
             <div className="lg:col-span-2 space-y-2 max-h-[600px] overflow-auto">
-              {mockCommunications.map((comm) => {
+              {filteredCommunications.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No communications found</p>
+                  {referralIdFilter && (
+                    <Button variant="link" size="sm" asChild className="mt-2">
+                      <Link href="/communications">View all communications</Link>
+                    </Button>
+                  )}
+                </div>
+              ) : null}
+              {filteredCommunications.map((comm) => {
                 const statusConfig = STATUS_CONFIG[comm.status];
                 const typeConfig = TYPE_CONFIG[comm.type];
                 const StatusIcon = statusConfig.icon;
@@ -106,7 +187,7 @@ export default function CommunicationsPage() {
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">
                         {comm.channel === "fax" ? <Printer className="h-3 w-3 inline" /> : <Mail className="h-3 w-3 inline" />}
-                        {" "}{comm.sentAt ? formatRelativeTime(comm.sentAt) : "Draft"}
+                        {" "}{comm.sentAt ? formatRelativeTime(comm.sentAt) : "Scheduled"}
                       </span>
                     </div>
                   </button>
@@ -129,6 +210,21 @@ export default function CommunicationsPage() {
                       <p>To: {selectedComm.recipientName} ({selectedComm.recipientFax || selectedComm.recipientEmail})</p>
                       <p>Channel: {selectedComm.channel.toUpperCase()} &middot; Type: {TYPE_CONFIG[selectedComm.type].label}</p>
                       {selectedComm.sentAt && <p>Sent: {new Date(selectedComm.sentAt).toLocaleString()}</p>}
+                      {selectedComm.referralId && (() => {
+                        const linkedReferral = mockReferrals.find(r => r.id === selectedComm.referralId);
+                        return linkedReferral ? (
+                          <p className="flex items-center gap-1">
+                            Referral:
+                            <Link
+                              href={`/referrals/${linkedReferral.id}`}
+                              className="text-primary hover:underline inline-flex items-center gap-0.5"
+                            >
+                              {linkedReferral.patientName}
+                              <ArrowUpRight className="h-3 w-3" />
+                            </Link>
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -144,6 +240,14 @@ export default function CommunicationsPage() {
                         <Eye className="h-3.5 w-3.5 mr-1" />
                         Preview
                       </Button>
+                      {selectedComm.referralId && !referralIdFilter && (
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/referrals/${selectedComm.referralId}`}>
+                            <FileText className="h-3.5 w-3.5 mr-1" />
+                            View Referral
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -194,41 +298,61 @@ export default function CommunicationsPage() {
             {pendingFollowUps.length === 0 ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12 text-muted-foreground">
-                  No pending follow-ups
+                  <div className="text-center">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No pending follow-ups</p>
+                    {referralIdFilter && (
+                      <Button variant="link" size="sm" asChild className="mt-2">
+                        <Link href="/communications?tab=follow-ups">View all follow-ups</Link>
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ) : (
-              pendingFollowUps.map((comm) => (
-                <Card key={comm.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">{comm.recipientName}</p>
-                        <p className="text-xs text-muted-foreground">{comm.subject}</p>
-                        <div className="flex items-center gap-2">
-                          <Badge className={cn("text-[10px]", TYPE_CONFIG[comm.type].color)} variant="secondary">
-                            {TYPE_CONFIG[comm.type].label}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            Reminders sent: {comm.remindersSent}
-                          </span>
+              pendingFollowUps.map((comm) => {
+                const linkedReferral = mockReferrals.find(r => r.id === comm.referralId);
+                return (
+                  <Card key={comm.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{comm.recipientName}</p>
+                          <p className="text-xs text-muted-foreground">{comm.subject}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge className={cn("text-[10px]", TYPE_CONFIG[comm.type].color)} variant="secondary">
+                              {TYPE_CONFIG[comm.type].label}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Reminders sent: {comm.remindersSent}
+                            </span>
+                            {linkedReferral && !referralIdFilter && (
+                              <Link
+                                href={`/referrals/${linkedReferral.id}`}
+                                className="text-xs text-primary hover:underline inline-flex items-center gap-0.5"
+                              >
+                                {linkedReferral.patientName}
+                                <ArrowUpRight className="h-3 w-3" />
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                          {comm.scheduledAt && (
+                            <p className="text-xs text-muted-foreground">
+                              Scheduled: {new Date(comm.scheduledAt).toLocaleDateString()}
+                            </p>
+                          )}
+                          <Button size="sm" onClick={() => toast.info("Reminder sent")}>
+                            <Send className="h-3.5 w-3.5 mr-1" />
+                            Send Reminder
+                          </Button>
                         </div>
                       </div>
-                      <div className="text-right space-y-2">
-                        {comm.followUpDueAt && (
-                          <p className="text-xs text-muted-foreground">
-                            Follow-up due: {new Date(comm.followUpDueAt).toLocaleDateString()}
-                          </p>
-                        )}
-                        <Button size="sm" onClick={() => toast.info("Reminder sent")}>
-                          <Send className="h-3.5 w-3.5 mr-1" />
-                          Send Reminder
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
           </div>
         </TabsContent>
