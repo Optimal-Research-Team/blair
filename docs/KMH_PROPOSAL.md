@@ -2,15 +2,15 @@
 ## Proposal for KMH Cardiology Clinics
 
 **Date:** February 2026
-**Prepared by:** Cerebrum AI Inc.
+**Prepared by:** Blair AI
 
 ---
 
 ## 1. Introduction
 
-### About Cerebrum AI
+### About Blair AI
 
-Cerebrum AI specializes in intelligent healthcare automation solutions designed for Canadian specialty clinics. Our team combines deep healthcare domain expertise with cutting-edge AI technology to solve the operational challenges that slow down patient care.
+Blair AI specializes in intelligent healthcare automation solutions designed for Canadian specialty clinics. Our team combines deep healthcare domain expertise with cutting-edge AI technology to solve the operational challenges that slow down patient care.
 
 ### Understanding KMH's Needs
 
@@ -190,5 +190,5 @@ Available upon request
 
 ---
 
-*Prepared by Cerebrum AI Inc.*
+*Prepared by Blair AI*
 *For questions, please contact your account representative.*
