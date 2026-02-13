@@ -144,13 +144,22 @@ Production                                   ████████
 
 ## 4. Pricing
 
-### Volume-Based Fax Processing
+### Blended Pricing Model
 
-| Monthly Volume | Per-Fax Rate |
-|----------------|--------------|
-| 0 – 10,000 faxes | **$0.15** |
-| 10,001 – 40,000 faxes | **$0.12** |
-| 40,001+ faxes | **$0.10** |
+**Base Rate:** $150/provider/month (volume discount: $125 for 20+ providers)
+
+- KMH at 50 providers: **$6,250/month base**
+- Includes up to **300 faxes/provider/month** (~15,000 total)
+
+### Overage Tiers
+
+| Monthly Overage Faxes | Rate |
+|-----------------------|------|
+| 0 – 2,000 | $0.60/fax |
+| 2,001 – 8,000 | $0.50/fax |
+| 8,001+ | $0.40/fax |
+
+**Example:** At current volume, KMH pays the flat $6,250 — no overages. If volume grows to 20,000 faxes/month, the extra 5,000 faxes would cost: (2,000 × $0.60) + (3,000 × $0.50) = **$2,700**, for a total of **$8,950/month**.
 
 ### What's Included
 
@@ -160,6 +169,12 @@ Production                                   ████████
 - All integration connections (SRFax, Cerebrum, Salesforce, Zendesk, Slack)
 - Dedicated support channel
 - Dashboard analytics and reporting
+
+### Terms
+
+- Month-to-month billing
+- 12-month rate lock
+- 30-day cancellation notice
 
 ### Implementation
 
