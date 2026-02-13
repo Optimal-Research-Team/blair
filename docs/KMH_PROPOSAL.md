@@ -10,7 +10,7 @@
 
 ### About Blair AI
 
-Blair AI specializes in intelligent healthcare automation solutions designed for Canadian specialty clinics. Our team combines deep healthcare domain expertise with cutting-edge AI technology to solve the operational challenges that slow down patient care.
+Blair AI is an Agentic AI platform purpose-built for automating clinical operations in cardiology. Our solutions span referral management, AI-powered fax processing, and intelligent voice intakes. Blair AI is currently deployed with KMH Cardiology—one of the largest cardiovascular clinics in the country—where it has automated patient intakes and significantly reduced the administrative burden on clinical staff.
 
 ### Understanding KMH's Needs
 
