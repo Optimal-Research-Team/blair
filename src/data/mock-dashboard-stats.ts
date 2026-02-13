@@ -54,8 +54,8 @@ export const mockStaffProductivity: StaffProductivity[] = [
 ];
 
 export const mockReferralFunnel: ReferralFunnelStage[] = [
-  { stage: "Received", count: 245, percentage: 100, color: "#3B82F6" },
-  { stage: "Complete", count: 198, percentage: 80.8, color: "#8B5CF6" },
-  { stage: "Accepted", count: 176, percentage: 71.8, color: "#10B981" },
-  { stage: "Booked", count: 142, percentage: 58.0, color: "#F59E0B" },
+  { stage: "Triage", count: 245, percentage: 100, color: "#6B7280" },
+  { stage: "Incomplete", count: 198, percentage: 80.8, color: "#F59E0B" },
+  { stage: "Pending Review", count: 162, percentage: 66.1, color: "#3B82F6" },
+  { stage: "Routed to Cerebrum", count: 142, percentage: 58.0, color: "#10B981" },
 ];

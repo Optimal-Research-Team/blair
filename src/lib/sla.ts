@@ -55,7 +55,7 @@ export function calculatePriorityScore(
   receivedAt: string,
   docTypePriorityWeight: number
 ): number {
-  const urgencyWeight = { stat: 100, urgent: 60, routine: 20 }[priority];
+  const urgencyWeight = { urgent: 100, routine: 20 }[priority];
 
   const now = new Date();
   const deadline = new Date(slaDeadline);

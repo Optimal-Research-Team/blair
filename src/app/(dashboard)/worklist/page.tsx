@@ -11,7 +11,6 @@ import { useLockStore } from "@/stores/use-lock-store";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
-  Zap,
   CheckCircle2,
   RefreshCw,
   ListTodo,
@@ -33,7 +32,7 @@ function WorklistPageContent() {
   const searchParams = useSearchParams();
   const viewParam = searchParams.get("view") as WorklistView | null;
   const [activeView, setActiveView] = useState<WorklistView>(viewParam || "all");
-  const [priorityFilter, setPriorityFilter] = useState<"stat" | "urgent" | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<"urgent" | "all">("all");
 
   const { getLockedByUser } = useLockStore();
 
@@ -52,10 +51,7 @@ function WorklistPageContent() {
     referral: mockWorklistItems.filter((i) => i.category === "referral").length,
   }), []);
 
-  // Calculate STAT and Urgent counts separately
-  const statCount = useMemo(() =>
-    mockWorklistItems.filter((i) => i.priority === "stat").length,
-  []);
+  // Calculate Urgent count
   const urgentCount = useMemo(() =>
     mockWorklistItems.filter((i) => i.priority === "urgent").length,
   []);
@@ -85,10 +81,6 @@ function WorklistPageContent() {
     } else {
       router.push(`/worklist?view=${view}`, { scroll: false });
     }
-  };
-
-  const toggleStatFilter = () => {
-    setPriorityFilter(priorityFilter === "stat" ? "all" : "stat");
   };
 
   const toggleUrgentFilter = () => {
@@ -145,22 +137,6 @@ function WorklistPageContent() {
 
         {/* Priority quick filters */}
         <div className="flex items-center gap-2">
-          {statCount > 0 && (
-            <Button
-              variant={priorityFilter === "stat" ? "default" : "outline"}
-              size="sm"
-              onClick={toggleStatFilter}
-              className={cn(
-                "h-8 text-xs",
-                priorityFilter === "stat"
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "border-red-200 text-red-700 hover:bg-red-50"
-              )}
-            >
-              <Zap className="h-3 w-3 mr-1" />
-              {statCount} STAT
-            </Button>
-          )}
           {urgentCount > 0 && (
             <Button
               variant={priorityFilter === "urgent" ? "default" : "outline"}
@@ -169,8 +145,8 @@ function WorklistPageContent() {
               className={cn(
                 "h-8 text-xs",
                 priorityFilter === "urgent"
-                  ? "bg-orange-500 hover:bg-orange-600"
-                  : "border-orange-200 text-orange-700 hover:bg-orange-50"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "border-red-200 text-red-700 hover:bg-red-50"
               )}
             >
               <AlertTriangle className="h-3 w-3 mr-1" />

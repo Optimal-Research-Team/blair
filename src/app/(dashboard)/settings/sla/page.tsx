@@ -24,19 +24,15 @@ export default function SlaPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="grid grid-cols-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground py-3 px-4 border-b bg-muted/30">
+          <div className="grid grid-cols-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground py-3 px-4 border-b bg-muted/30">
             <span className="col-span-2">Document Type</span>
-            <span className="text-center">STAT</span>
             <span className="text-center">Urgent</span>
             <span className="text-center">Routine</span>
           </div>
           {mockDocumentTypes.map((dt) => (
-            <div key={dt.id} className="grid grid-cols-5 items-center py-3 px-4 border-b last:border-0 hover:bg-muted/30">
+            <div key={dt.id} className="grid grid-cols-4 items-center py-3 px-4 border-b last:border-0 hover:bg-muted/30">
               <span className="col-span-2 text-sm font-medium">{dt.name}</span>
               <span className="text-center text-sm font-medium text-red-600 tabular-nums">
-                {formatSlaTime(dt.slaMinutes.stat)}
-              </span>
-              <span className="text-center text-sm font-medium text-amber-600 tabular-nums">
                 {formatSlaTime(dt.slaMinutes.urgent)}
               </span>
               <span className="text-center text-sm font-medium text-green-600 tabular-nums">
@@ -52,8 +48,7 @@ export default function SlaPage() {
           <CardTitle className="text-sm">SLA Legend</CardTitle>
         </CardHeader>
         <CardContent className="text-xs text-muted-foreground space-y-1">
-          <p><span className="text-red-600 font-medium">STAT:</span> Life-threatening or critical findings. Must be actioned within the specified time.</p>
-          <p><span className="text-amber-600 font-medium">Urgent:</span> Time-sensitive items requiring prompt attention.</p>
+          <p><span className="text-red-600 font-medium">Urgent:</span> Time-sensitive items requiring prompt attention.</p>
           <p><span className="text-green-600 font-medium">Routine:</span> Standard processing timeline. No immediate clinical urgency.</p>
         </CardContent>
       </Card>

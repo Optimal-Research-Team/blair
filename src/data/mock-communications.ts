@@ -208,7 +208,7 @@ export const mockCommunications: Communication[] = [
     recipientName: "Dr. Lisa Wong",
     recipientFax: "4165555002",
     subject: "Referral Received - Michael Singh",
-    body: "Dear Dr. Wong,\n\nSTAT referral received for Michael Singh. Assigned to Dr. Anika Patel for urgent review.",
+    body: "Dear Dr. Wong,\n\nUrgent referral received for Michael Singh. Assigned to Dr. Anika Patel for urgent review.",
     sentAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     escalationStrategy: "none",
     remindersSent: 0,

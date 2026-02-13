@@ -1,16 +1,94 @@
 import { Referral, ReferralDocument, TimelineEvent } from "@/types/referral";
 import { CompletenessItemStatus } from "@/types/communication";
 import { Communication } from "@/types/communication";
+import { BoundingBox, ExtractedField } from "@/types/highlight";
 
 // Helper to convert old present boolean to new status
 const s = (present: boolean): CompletenessItemStatus => present ? "found" : "missing";
 
-// Helper to create mock document pages
-const createPages = (docId: string, count: number, descriptions: string[]) =>
+// Helper to create source regions for completeness items
+// Creates realistic bounding boxes based on typical document layouts
+const createSourceRegion = (type: "ecg" | "bloodwork" | "document" | "medications" | "clinical" | "imaging"): BoundingBox => {
+  switch (type) {
+    case "ecg":
+      return { x: 50, y: 150, width: 512, height: 350 }; // Large ECG strip area
+    case "bloodwork":
+      return { x: 60, y: 200, width: 450, height: 180 }; // Lab results table
+    case "document":
+      return { x: 50, y: 80, width: 250, height: 30 }; // Document header
+    case "medications":
+      return { x: 60, y: 400, width: 350, height: 200 }; // Medication list area
+    case "clinical":
+      return { x: 50, y: 250, width: 512, height: 280 }; // Clinical history paragraph
+    case "imaging":
+      return { x: 50, y: 120, width: 512, height: 450 }; // Imaging report
+    default:
+      return { x: 100, y: 200, width: 400, height: 100 };
+  }
+};
+
+// Helper to create extracted fields for referral document pages
+const createReferralExtractedFields = (
+  docId: string,
+  pageNum: number,
+  patientName?: string,
+  docType?: string
+): ExtractedField[] => {
+  const fields: ExtractedField[] = [];
+  const baseId = `ef-${docId}-p${pageNum}`;
+
+  if (patientName && pageNum === 1) {
+    fields.push({
+      id: `${baseId}-name`,
+      fieldType: "patient-name",
+      label: "Patient Name",
+      value: patientName,
+      boundingBox: { x: 100, y: 140, width: 180, height: 24 },
+      pageNumber: pageNum,
+      confidence: 97.5 + Math.random() * 2,
+    });
+    fields.push({
+      id: `${baseId}-dob`,
+      fieldType: "patient-dob",
+      label: "Date of Birth",
+      value: "1960-01-01",
+      boundingBox: { x: 300, y: 140, width: 120, height: 24 },
+      pageNumber: pageNum,
+      confidence: 96.0 + Math.random() * 3,
+    });
+    fields.push({
+      id: `${baseId}-phn`,
+      fieldType: "patient-phn",
+      label: "OHIP Number",
+      value: "1234-567-890-AB",
+      boundingBox: { x: 440, y: 140, width: 150, height: 24 },
+      pageNumber: pageNum,
+      confidence: 95.0 + Math.random() * 4,
+    });
+  }
+
+  if (docType && pageNum === 1) {
+    fields.push({
+      id: `${baseId}-doctype`,
+      fieldType: "document-type",
+      label: "Document Type",
+      value: docType,
+      boundingBox: { x: 50, y: 80, width: 250, height: 30 },
+      pageNumber: pageNum,
+      confidence: 94.0 + Math.random() * 5,
+    });
+  }
+
+  return fields;
+};
+
+// Helper to create mock document pages with extracted fields
+const createPages = (docId: string, count: number, descriptions: string[], patientName?: string, docType?: string) =>
   Array.from({ length: count }, (_, i) => ({
     id: `${docId}-page-${i + 1}`,
     pageNumber: i + 1,
     detectedContent: descriptions[i] || `Page ${i + 1} content`,
+    extractedFields: i === 0 ? createReferralExtractedFields(docId, 1, patientName, docType) : [],
   }));
 
 // Rich example: Referral with full communication history and grouped documents
@@ -26,7 +104,7 @@ const richReferralDocuments: ReferralDocument[] = [
       "Cover page with patient demographics and referring physician info",
       "Clinical history and reason for referral - Decompensated heart failure",
       "Current medications list"
-    ]),
+    ], "Jean-Luc Tremblay", "Cardiology Referral"),
   },
   {
     id: "doc-ref2-2",
@@ -39,7 +117,7 @@ const richReferralDocuments: ReferralDocument[] = [
     pages: createPages("doc-ref2-2", 2, [
       "12-lead ECG showing sinus rhythm with LVH",
       "ECG interpretation notes"
-    ]),
+    ], "Jean-Luc Tremblay", "ECG Report"),
   },
 ];
 
@@ -200,19 +278,20 @@ const richReferralTimeline: TimelineEvent[] = [
 export const mockReferrals: Referral[] = [
   {
     id: "ref-1", faxId: "fax-2", patientId: "pat-24", patientName: "Michael Singh",
+    patientDob: "1953-04-08", patientOhip: "4400556677UV",
     referringPhysicianId: "phys-5", referringPhysicianName: "Dr. Lisa Wong",
     referringPhysicianFax: "4165555002",
     clinicName: "Toronto General Hospital ED", clinicCity: "Toronto",
-    receivedDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), status: "complete", priority: "stat",
-    isUrgent: true,
+    receivedDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), status: "routed", priority: "urgent",
+    isUrgent: true, urgencyRating: "urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 94,
     reasonForReferral: "Unstable angina with dynamic ECG changes. Triple vessel disease on recent CT angiogram. Requires urgent cardiology consultation.",
     clinicalHistory: "65-year-old male presenting to ED with recurrent chest pain at rest. Troponin trending up. Known CAD with previous PCI to LAD (2023).",
     conditions: ["Unstable Angina", "Triple Vessel Disease", "Previous PCI"], medications: ["Ticagrelor 90mg BID", "Atorvastatin 80mg daily", "Metoprolol 100mg BID", "Ramipril 10mg daily", "Nitroglycerin patch 0.4mg/hr"],
     completenessItems: [
-      { id: "ci-1", label: "ECG", required: true, status: s(true), confidence: 98, pageNumber: 2, documentId: "doc-ref1-1" },
-      { id: "ci-2", label: "Bloodwork (Troponin)", required: true, status: s(true), confidence: 95 },
-      { id: "ci-3", label: "CT Angiogram Report", required: true, status: s(true), confidence: 92 },
-      { id: "ci-4", label: "Medication List", required: true, status: s(true), confidence: 88 },
+      { id: "ci-1", label: "ECG", required: true, status: s(true), confidence: 98, pageNumber: 2, documentId: "doc-ref1-1", sourceRegion: createSourceRegion("ecg") },
+      { id: "ci-2", label: "Bloodwork (Troponin)", required: true, status: s(true), confidence: 95, pageNumber: 3, documentId: "doc-ref1-1", sourceRegion: createSourceRegion("bloodwork") },
+      { id: "ci-3", label: "CT Angiogram Report", required: true, status: s(true), confidence: 92, pageNumber: 4, documentId: "doc-ref1-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-4", label: "Medication List", required: true, status: s(true), confidence: 88, pageNumber: 5, documentId: "doc-ref1-1", sourceRegion: createSourceRegion("medications") },
       { id: "ci-5", label: "Previous PCI Report", required: false, status: s(false), confidence: 85 },
     ],
     completenessScore: 100, aiConfidence: 94, assignedCardiologist: "user-1", assignedCardiologistName: "Dr. Anika Patel",
@@ -225,12 +304,12 @@ export const mockReferrals: Referral[] = [
         receivedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
         pageCount: 5,
         pages: createPages("doc-ref1-1", 5, [
-          "Cover page - STAT referral from Toronto General ED",
+          "Cover page - Urgent referral from Toronto General ED",
           "12-lead ECG showing dynamic ST changes",
           "Troponin and bloodwork results",
           "CT angiogram report - triple vessel disease",
           "Current medications and clinical summary"
-        ]),
+        ], "Michael Singh", "Urgent Cardiology Referral"),
       },
     ],
     communications: [
@@ -243,8 +322,8 @@ export const mockReferrals: Referral[] = [
         initiator: "ai",
         recipientName: "Dr. Lisa Wong",
         recipientFax: "4165555002",
-        subject: "STAT Referral Received - Michael Singh",
-        body: "Dear Dr. Wong,\n\nSTAT referral received for Michael Singh. Assigned to Dr. Anika Patel for urgent review.\n\nSunnybrook Cardiology",
+        subject: "Urgent Referral Received - Michael Singh",
+        body: "Dear Dr. Wong,\n\nUrgent referral received for Michael Singh. Assigned to Dr. Anika Patel for urgent review.\n\nSunnybrook Cardiology",
         sentAt: new Date(Date.now() - 0.5 * 60 * 60 * 1000).toISOString(),
         escalationStrategy: "none",
         remindersSent: 0,
@@ -258,7 +337,7 @@ export const mockReferrals: Referral[] = [
         id: "tl-ref1-1",
         type: "referral-received",
         timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-        title: "STAT Referral Received",
+        title: "Urgent Referral Received",
         description: "From Toronto General ED via Dr. Lisa Wong",
         actor: "ai",
       },
@@ -267,7 +346,7 @@ export const mockReferrals: Referral[] = [
         type: "ai-classified",
         timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000 + 15000).toISOString(),
         title: "AI Classification Complete",
-        description: "STAT priority - Unstable angina. All required items present.",
+        description: "Urgent priority - Unstable angina. All required items present.",
         actor: "ai",
         metadata: { confidence: 94 },
       },
@@ -288,27 +367,28 @@ export const mockReferrals: Referral[] = [
         actor: "ai",
       },
     ],
-    notes: ["STAT referral from Toronto General ED", "Dynamic ST changes on serial ECGs"],
+    notes: ["Urgent referral from Toronto General ED", "Dynamic ST changes on serial ECGs"],
     createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: "ref-2", faxId: "fax-3", patientId: "pat-3", patientName: "Jean-Luc Tremblay",
+    patientDob: "1967-11-03", patientOhip: "3456789012EF",
     referringPhysicianId: "phys-4", referringPhysicianName: "Dr. Karim Ramji",
     referringPhysicianFax: "9055554002", referringPhysicianPhone: "9055554001",
     referringPhysicianEmail: "k.ramji@hamiltonfht.ca",
     clinicName: "Hamilton Family Health Team", clinicCity: "Hamilton",
     receivedDate: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(), status: "incomplete", priority: "urgent",
-    isUrgent: true,
+    isUrgent: true, urgencyRating: "urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 91,
     reasonForReferral: "Decompensated heart failure. Increasing dyspnea, weight gain 5kg in 2 weeks despite diuretic adjustment.",
     clinicalHistory: "59-year-old male with known HFrEF (LVEF 30%). On guideline-directed therapy. Worsening symptoms despite optimization.",
     conditions: ["Heart Failure (HFrEF)", "Volume Overload"], medications: ["Entresto 97/103mg BID", "Furosemide 40mg daily", "Carvedilol 25mg BID"],
     completenessItems: [
-      { id: "ci-6", label: "ECG", required: true, status: s(true), confidence: 97, pageNumber: 1, documentId: "doc-ref2-2" },
+      { id: "ci-6", label: "ECG", required: true, status: s(true), confidence: 97, pageNumber: 1, documentId: "doc-ref2-2", sourceRegion: createSourceRegion("ecg") },
       { id: "ci-7", label: "Bloodwork (BNP)", required: true, status: s(false), confidence: 90 },
       { id: "ci-8", label: "Recent Echocardiogram", required: true, status: s(false), confidence: 88 },
-      { id: "ci-9", label: "Medication List", required: true, status: s(true), confidence: 95, pageNumber: 3, documentId: "doc-ref2-1" },
-      { id: "ci-10", label: "Clinical History", required: true, status: s(true), confidence: 93, pageNumber: 2, documentId: "doc-ref2-1" },
+      { id: "ci-9", label: "Medication List", required: true, status: s(true), confidence: 95, pageNumber: 3, documentId: "doc-ref2-1", sourceRegion: createSourceRegion("medications") },
+      { id: "ci-10", label: "Clinical History", required: true, status: s(true), confidence: 93, pageNumber: 2, documentId: "doc-ref2-1", sourceRegion: createSourceRegion("clinical") },
     ],
     completenessScore: 60, aiConfidence: 91,
     documents: richReferralDocuments,
@@ -321,20 +401,21 @@ export const mockReferrals: Referral[] = [
   },
   {
     id: "ref-3", faxId: "fax-5", patientId: "pat-30", patientName: "Victor Kozlov",
+    patientDob: "1946-09-18", patientOhip: "0000112233GH",
     referringPhysicianId: "phys-18", referringPhysicianName: "Dr. Patrick Murphy",
     referringPhysicianFax: "4165551802",
     clinicName: "St. Michael's Hospital ED", clinicCity: "Toronto",
     receivedDate: new Date(Date.now() - 1.75 * 60 * 60 * 1000).toISOString(), status: "incomplete", priority: "urgent",
-    isUrgent: true,
+    isUrgent: true, urgencyRating: "urgent", urgencyConfirmedBy: "human", urgencyConfidence: 100,
     reasonForReferral: "Severe aortic stenosis with syncope. AVA 0.7 cm2. Referred for TAVI assessment.",
     clinicalHistory: "80-year-old male with progressive dyspnea and two syncopal episodes. Severe AS confirmed on echo. High surgical risk.",
     conditions: ["Severe Aortic Stenosis", "Syncope", "Heart Failure", "CKD Stage 4"], medications: ["Furosemide 80mg BID", "Spironolactone 25mg daily", "Metoprolol 25mg daily"],
     completenessItems: [
-      { id: "ci-11", label: "ECG", required: true, status: s(true), confidence: 97, pageNumber: 2 },
-      { id: "ci-12", label: "Echocardiogram", required: true, status: s(true), confidence: 96, pageNumber: 3 },
-      { id: "ci-13", label: "Bloodwork (Renal Panel)", required: true, status: s(true), confidence: 94, pageNumber: 4 },
+      { id: "ci-11", label: "ECG", required: true, status: s(true), confidence: 97, pageNumber: 2, documentId: "doc-ref3-1", sourceRegion: createSourceRegion("ecg") },
+      { id: "ci-12", label: "Echocardiogram", required: true, status: s(true), confidence: 96, pageNumber: 3, documentId: "doc-ref3-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-13", label: "Bloodwork (Renal Panel)", required: true, status: s(true), confidence: 94, pageNumber: 4, documentId: "doc-ref3-1", sourceRegion: createSourceRegion("bloodwork") },
       { id: "ci-14", label: "CT Aorta", required: true, status: s(false), confidence: 91 },
-      { id: "ci-15", label: "Medication List", required: true, status: s(true), confidence: 89, pageNumber: 1 },
+      { id: "ci-15", label: "Medication List", required: true, status: s(true), confidence: 89, pageNumber: 1, documentId: "doc-ref3-1", sourceRegion: createSourceRegion("medications") },
       { id: "ci-16", label: "Surgical Risk Assessment", required: false, status: s(false), confidence: 85 },
     ],
     completenessScore: 80, aiConfidence: 92,
@@ -352,7 +433,7 @@ export const mockReferrals: Referral[] = [
           "Echocardiogram report - AVA 0.7 cm2, severe AS",
           "Renal panel and bloodwork",
           "Clinical history and syncope notes"
-        ]),
+        ], "Victor Kozlov", "TAVI Assessment Referral"),
       },
     ],
     communications: [
@@ -432,19 +513,20 @@ export const mockReferrals: Referral[] = [
   },
   {
     id: "ref-4", faxId: "fax-7", patientId: "pat-21", patientName: "Marie Gagnon",
+    patientDob: "1968-09-13", patientOhip: "1100223344OP",
     referringPhysicianId: "phys-1", referringPhysicianName: "Dr. Sarah Chen",
     referringPhysicianFax: "4165551002",
     clinicName: "Pacific Family Practice", clinicCity: "Toronto",
-    receivedDate: new Date(Date.now() - 0.75 * 60 * 60 * 1000).toISOString(), status: "complete", priority: "routine",
-    isUrgent: false,
+    receivedDate: new Date(Date.now() - 0.75 * 60 * 60 * 1000).toISOString(), status: "pending-review", priority: "routine",
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 95,
     reasonForReferral: "Chest pain on exertion. 58-year-old female with no prior cardiac history. Stress test recommended.",
     clinicalHistory: "New onset exertional chest tightness over past 3 months. Pain resolves with rest. No cardiac risk factors except family history.",
     conditions: ["Chest Pain on Exertion"], medications: ["Nitroglycerin SL PRN"],
     completenessItems: [
-      { id: "ci-17", label: "ECG", required: true, status: s(true), confidence: 98, pageNumber: 2 },
-      { id: "ci-18", label: "Bloodwork (Lipids, Glucose)", required: true, status: s(true), confidence: 95, pageNumber: 3 },
-      { id: "ci-19", label: "Medication List", required: true, status: s(true), confidence: 92, pageNumber: 1 },
-      { id: "ci-20", label: "Clinical History", required: true, status: s(true), confidence: 96, pageNumber: 1 },
+      { id: "ci-17", label: "ECG", required: true, status: s(true), confidence: 98, pageNumber: 2, documentId: "doc-ref4-1", sourceRegion: createSourceRegion("ecg") },
+      { id: "ci-18", label: "Bloodwork (Lipids, Glucose)", required: true, status: s(true), confidence: 95, pageNumber: 3, documentId: "doc-ref4-1", sourceRegion: createSourceRegion("bloodwork") },
+      { id: "ci-19", label: "Medication List", required: true, status: s(true), confidence: 92, pageNumber: 1, documentId: "doc-ref4-1", sourceRegion: createSourceRegion("medications") },
+      { id: "ci-20", label: "Clinical History", required: true, status: s(true), confidence: 96, pageNumber: 1, documentId: "doc-ref4-1", sourceRegion: createSourceRegion("clinical") },
     ],
     completenessScore: 100, aiConfidence: 95,
     documents: [
@@ -460,7 +542,7 @@ export const mockReferrals: Referral[] = [
           "12-lead ECG - normal sinus rhythm",
           "Bloodwork results - lipids and glucose",
           "Additional notes from Dr. Chen"
-        ]),
+        ], "Marie Gagnon", "Cardiology Referral"),
       },
     ],
     communications: [],
@@ -490,16 +572,17 @@ export const mockReferrals: Referral[] = [
   },
   {
     id: "ref-5", faxId: "fax-9", patientId: "", patientName: "Unknown Patient",
+    patientDob: undefined, patientOhip: undefined,
     referringPhysicianId: "phys-2", referringPhysicianName: "Dr. James MacLeod",
     referringPhysicianFax: "9055552002",
     clinicName: "Dundas Medical Centre", clinicCity: "Mississauga",
-    receivedDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), status: "incomplete", priority: "routine",
-    isUrgent: false,
+    receivedDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), status: "triage", priority: "routine",
+    isUrgent: false, urgencyRating: "unknown", urgencyConfidence: 36,
     reasonForReferral: "Cardiology consultation requested. Patient demographics partially illegible on fax.",
     clinicalHistory: "Unable to fully extract. Fax quality degraded.",
     conditions: [], medications: [],
     completenessItems: [
-      { id: "ci-21", label: "Patient Demographics", required: true, status: s(false), confidence: 35 },
+      { id: "ci-21", label: "Patient Demographics", required: true, status: s(false), confidence: 35, pageNumber: 1, documentId: "doc-ref5-1", sourceRegion: { x: 100, y: 140, width: 400, height: 60 } },
       { id: "ci-22", label: "ECG", required: true, status: s(false), confidence: 42 },
       { id: "ci-23", label: "Clinical History", required: true, status: s(false), confidence: 28 },
       { id: "ci-24", label: "Medication List", required: true, status: s(false), confidence: 38 },
@@ -516,7 +599,7 @@ export const mockReferrals: Referral[] = [
         pages: createPages("doc-ref5-1", 2, [
           "Cover page - partially illegible, fax quality issues",
           "Second page - text heavily degraded"
-        ]),
+        ], undefined, "Cardiology Referral"),
       },
     ],
     communications: [
@@ -596,20 +679,21 @@ export const mockReferrals: Referral[] = [
   },
   {
     id: "ref-6", faxId: "fax-10", patientId: "pat-5", patientName: "Oluwaseun Adeyemi",
+    patientDob: "1955-09-30", patientOhip: "5678901234IJ",
     referringPhysicianId: "phys-12", referringPhysicianName: "Dr. Deepak Gupta",
     referringPhysicianFax: "9055551202",
     clinicName: "Brampton Internal Medicine", clinicCity: "Brampton",
     receivedDate: new Date(Date.now() - 2.75 * 60 * 60 * 1000).toISOString(), status: "incomplete", priority: "routine",
-    isUrgent: false,
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 92,
     reasonForReferral: "Aortic stenosis assessment. Progressive dyspnea over 6 months. Echo showing AVA 1.1 cm2.",
     clinicalHistory: "71-year-old male with moderate AS. NYHA Class II symptoms. Hypertension managed. No syncope.",
     conditions: ["Aortic Stenosis", "Hypertension"], medications: ["Amlodipine 10mg daily", "Ramipril 10mg daily"],
     completenessItems: [
-      { id: "ci-25", label: "ECG", required: true, status: s(true), confidence: 94, pageNumber: 2 },
-      { id: "ci-26", label: "Echocardiogram", required: true, status: s(true), confidence: 96, pageNumber: 3 },
+      { id: "ci-25", label: "ECG", required: true, status: s(true), confidence: 94, pageNumber: 2, documentId: "doc-ref6-1", sourceRegion: createSourceRegion("ecg") },
+      { id: "ci-26", label: "Echocardiogram", required: true, status: s(true), confidence: 96, pageNumber: 3, documentId: "doc-ref6-1", sourceRegion: createSourceRegion("imaging") },
       { id: "ci-27", label: "Bloodwork", required: true, status: s(false), confidence: 88 },
-      { id: "ci-28", label: "Medication List", required: true, status: s(true), confidence: 91, pageNumber: 1 },
-      { id: "ci-29", label: "Clinical History", required: true, status: s(true), confidence: 93, pageNumber: 1 },
+      { id: "ci-28", label: "Medication List", required: true, status: s(true), confidence: 91, pageNumber: 1, documentId: "doc-ref6-1", sourceRegion: createSourceRegion("medications") },
+      { id: "ci-29", label: "Clinical History", required: true, status: s(true), confidence: 93, pageNumber: 1, documentId: "doc-ref6-1", sourceRegion: createSourceRegion("clinical") },
     ],
     completenessScore: 80, aiConfidence: 92, assignedCardiologist: "user-2", assignedCardiologistName: "Dr. Marcus Chen",
     documents: [
@@ -625,7 +709,7 @@ export const mockReferrals: Referral[] = [
           "12-lead ECG",
           "Echocardiogram report - AVA 1.1 cm2",
           "Additional clinical notes"
-        ]),
+        ], "Oluwaseun Adeyemi", "Aortic Stenosis Assessment"),
       },
     ],
     communications: [
@@ -705,19 +789,20 @@ export const mockReferrals: Referral[] = [
   },
   {
     id: "ref-7", faxId: "fax-16", patientId: "pat-11", patientName: "Anya Kowalski",
+    patientDob: "1970-05-21", patientOhip: "1122334455UV",
     referringPhysicianId: "phys-3", referringPhysicianName: "Dr. Priya Kapoor",
     referringPhysicianFax: "4165553002",
     clinicName: "Burnaby Medical Centre", clinicCity: "Burnaby",
-    receivedDate: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), status: "accepted", priority: "routine",
-    isUrgent: false,
+    receivedDate: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), status: "routed", priority: "routine",
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 95,
     reasonForReferral: "Syncope workup. Two episodes in past month. No prodrome. ECG showed sinus bradycardia.",
     clinicalHistory: "56-year-old female with two unexplained syncopal episodes. No preceding symptoms. Witnessed fall with brief LOC.",
     conditions: ["Syncope", "Bradycardia"], medications: [],
     completenessItems: [
-      { id: "ci-30", label: "ECG", required: true, status: s(true), confidence: 97, pageNumber: 2 },
-      { id: "ci-31", label: "Bloodwork", required: true, status: s(true), confidence: 94, pageNumber: 3 },
-      { id: "ci-32", label: "Clinical History", required: true, status: s(true), confidence: 96, pageNumber: 1 },
-      { id: "ci-33", label: "Medication List", required: true, status: s(true), confidence: 92, pageNumber: 1 },
+      { id: "ci-30", label: "ECG", required: true, status: s(true), confidence: 97, pageNumber: 2, documentId: "doc-ref7-1", sourceRegion: createSourceRegion("ecg") },
+      { id: "ci-31", label: "Bloodwork", required: true, status: s(true), confidence: 94, pageNumber: 3, documentId: "doc-ref7-1", sourceRegion: createSourceRegion("bloodwork") },
+      { id: "ci-32", label: "Clinical History", required: true, status: s(true), confidence: 96, pageNumber: 1, documentId: "doc-ref7-1", sourceRegion: createSourceRegion("clinical") },
+      { id: "ci-33", label: "Medication List", required: true, status: s(true), confidence: 92, pageNumber: 1, documentId: "doc-ref7-1", sourceRegion: createSourceRegion("medications") },
     ],
     completenessScore: 100, aiConfidence: 95, assignedCardiologist: "user-1", assignedCardiologistName: "Dr. Anika Patel",
     documents: [
@@ -733,7 +818,7 @@ export const mockReferrals: Referral[] = [
           "12-lead ECG - sinus bradycardia",
           "Bloodwork results",
           "Syncope episode documentation"
-        ]),
+        ], "Anya Kowalski", "Syncope Workup"),
       },
     ],
     communications: [
@@ -821,18 +906,19 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
   },
   {
     id: "ref-8", faxId: "fax-19", patientId: "pat-26", patientName: "Ahmed Ibrahim",
+    patientDob: "1962-03-30", patientOhip: "6600778899YZ",
     referringPhysicianId: "phys-6", referringPhysicianName: "Dr. Michael O'Sullivan",
     referringPhysicianFax: "4165556002",
     clinicName: "Riverside Family Practice", clinicCity: "Toronto",
-    receivedDate: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), status: "booked", priority: "routine",
-    isUrgent: false,
+    receivedDate: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), status: "routed", priority: "routine",
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 95,
     reasonForReferral: "Bicuspid aortic valve monitoring. Aortic root 4.2cm on last echo. Annual surveillance.",
     clinicalHistory: "64-year-old male with known BAV. Aortic root progressively dilating. Last echo showed mild AR.",
     conditions: ["Bicuspid Aortic Valve", "Aortic Root Dilation"], medications: ["Losartan 100mg daily", "Metoprolol 50mg daily"],
     completenessItems: [
-      { id: "ci-34", label: "Previous Echo Report", required: true, status: s(true), confidence: 96, pageNumber: 2 },
-      { id: "ci-35", label: "Medication List", required: true, status: s(true), confidence: 93, pageNumber: 1 },
-      { id: "ci-36", label: "Clinical History", required: true, status: s(true), confidence: 95, pageNumber: 1 },
+      { id: "ci-34", label: "Previous Echo Report", required: true, status: s(true), confidence: 96, pageNumber: 2, documentId: "doc-ref8-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-35", label: "Medication List", required: true, status: s(true), confidence: 93, pageNumber: 1, documentId: "doc-ref8-1", sourceRegion: createSourceRegion("medications") },
+      { id: "ci-36", label: "Clinical History", required: true, status: s(true), confidence: 95, pageNumber: 1, documentId: "doc-ref8-1", sourceRegion: createSourceRegion("clinical") },
     ],
     completenessScore: 100, aiConfidence: 95, assignedCardiologist: "user-2", assignedCardiologistName: "Dr. Marcus Chen",
     appointmentDate: "2026-03-15",
@@ -848,7 +934,7 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
           "Referral form with clinical history and medications",
           "Previous echocardiogram report",
           "Aortic root measurements over time"
-        ]),
+        ], "Ahmed Ibrahim", "BAV Surveillance"),
       },
     ],
     communications: [
@@ -896,20 +982,21 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
   },
   {
     id: "ref-9", faxId: "fax-24", patientId: "pat-14", patientName: "James O'Brien",
+    patientDob: "1948-07-11", patientOhip: "4455667788AB",
     referringPhysicianId: "phys-7", referringPhysicianName: "Dr. Amira Benali",
     referringPhysicianFax: "6135557002",
     clinicName: "Ottawa General Internal Med", clinicCity: "Ottawa",
-    receivedDate: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(), status: "accepted", priority: "routine",
-    isUrgent: false,
+    receivedDate: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(), status: "routed", priority: "routine",
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 92,
     reasonForReferral: "Pulmonary hypertension assessment. Progressive dyspnea. Echo showing elevated RVSP 55mmHg.",
     clinicalHistory: "78-year-old male with AF and progressive dyspnea. RVSP elevated on recent echo. R/O pulmonary hypertension.",
     conditions: ["Atrial Fibrillation", "Pulmonary Hypertension"], medications: ["Rivaroxaban 20mg daily", "Sildenafil 20mg TID", "Furosemide 40mg daily"],
     completenessItems: [
-      { id: "ci-37", label: "Echocardiogram", required: true, status: s(true), confidence: 97, pageNumber: 2 },
-      { id: "ci-38", label: "Bloodwork (BNP)", required: true, status: s(true), confidence: 94, pageNumber: 3 },
-      { id: "ci-39", label: "Chest X-Ray", required: true, status: s(true), confidence: 92, pageNumber: 4 },
+      { id: "ci-37", label: "Echocardiogram", required: true, status: s(true), confidence: 97, pageNumber: 2, documentId: "doc-ref9-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-38", label: "Bloodwork (BNP)", required: true, status: s(true), confidence: 94, pageNumber: 3, documentId: "doc-ref9-1", sourceRegion: createSourceRegion("bloodwork") },
+      { id: "ci-39", label: "Chest X-Ray", required: true, status: s(true), confidence: 92, pageNumber: 4, documentId: "doc-ref9-1", sourceRegion: createSourceRegion("imaging") },
       { id: "ci-40", label: "Pulmonary Function Tests", required: false, status: s(false), confidence: 85 },
-      { id: "ci-41", label: "Medication List", required: true, status: s(true), confidence: 91, pageNumber: 1 },
+      { id: "ci-41", label: "Medication List", required: true, status: s(true), confidence: 91, pageNumber: 1, documentId: "doc-ref9-1", sourceRegion: createSourceRegion("medications") },
     ],
     completenessScore: 100, aiConfidence: 92, assignedCardiologist: "user-1", assignedCardiologistName: "Dr. Anika Patel",
     documents: [
@@ -926,7 +1013,7 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
           "BNP and bloodwork",
           "Chest X-Ray report",
           "Clinical summary"
-        ]),
+        ], "James O'Brien", "Pulmonary Hypertension Assessment"),
       },
     ],
     communications: [
@@ -974,18 +1061,19 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
   },
   {
     id: "ref-10", faxId: "fax-26", patientId: "pat-9", patientName: "Priya Sharma",
+    patientDob: "1978-08-09", patientOhip: "9012345678QR",
     referringPhysicianId: "phys-11", referringPhysicianName: "Dr. Emily Turner",
     referringPhysicianFax: "4165551102",
     clinicName: "Lakeshore Community Health", clinicCity: "Etobicoke",
     receivedDate: new Date(Date.now() - 49 * 60 * 60 * 1000).toISOString(), status: "declined", priority: "routine",
-    isUrgent: false,
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 97,
     reasonForReferral: "Chest pain workup. 48-year-old female with atypical chest pain and anxiety. Low pre-test probability.",
     clinicalHistory: "Non-exertional chest pain, positional, worse with anxiety. Normal ECG. Normal bloodwork. Low HEART score.",
     conditions: ["Chest Pain NYD", "Anxiety"], medications: ["Pantoprazole 40mg daily"],
     completenessItems: [
-      { id: "ci-42", label: "ECG", required: true, status: s(true), confidence: 98, pageNumber: 2 },
-      { id: "ci-43", label: "Bloodwork", required: true, status: s(true), confidence: 96, pageNumber: 3 },
-      { id: "ci-44", label: "Clinical History", required: true, status: s(true), confidence: 97, pageNumber: 1 },
+      { id: "ci-42", label: "ECG", required: true, status: s(true), confidence: 98, pageNumber: 2, documentId: "doc-ref10-1", sourceRegion: createSourceRegion("ecg") },
+      { id: "ci-43", label: "Bloodwork", required: true, status: s(true), confidence: 96, pageNumber: 3, documentId: "doc-ref10-1", sourceRegion: createSourceRegion("bloodwork") },
+      { id: "ci-44", label: "Clinical History", required: true, status: s(true), confidence: 97, pageNumber: 1, documentId: "doc-ref10-1", sourceRegion: createSourceRegion("clinical") },
     ],
     completenessScore: 100, aiConfidence: 97,
     declineReason: "Low pre-test probability for cardiac etiology. Recommend GI workup and stress management. Re-refer if symptoms change or become exertional.",
@@ -1001,7 +1089,7 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
           "Referral form with clinical history",
           "Normal 12-lead ECG",
           "Bloodwork results - all normal"
-        ]),
+        ], "Priya Sharma", "Chest Pain Workup"),
       },
     ],
     communications: [
@@ -1049,19 +1137,20 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
   },
   {
     id: "ref-11", faxId: "fax-28", patientId: "pat-17", patientName: "Elena Dimitriou",
+    patientDob: "1965-11-19", patientOhip: "7788990011GH",
     referringPhysicianId: "phys-12", referringPhysicianName: "Dr. Daniel Osei",
     referringPhysicianFax: "9055552002",
     clinicName: "Hamilton Health Sciences", clinicCity: "Hamilton",
-    receivedDate: new Date(Date.now() - 53 * 60 * 60 * 1000).toISOString(), status: "accepted", priority: "routine",
-    isUrgent: false,
+    receivedDate: new Date(Date.now() - 53 * 60 * 60 * 1000).toISOString(), status: "routed", priority: "routine",
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "human", urgencyConfidence: 100,
     reasonForReferral: "Rheumatic mitral stenosis reassessment. Last echo 6 months ago showed MVA 1.3 cm2. Progressive symptoms.",
     clinicalHistory: "52-year-old female with childhood rheumatic fever. Known mitral stenosis. Increasing dyspnea on exertion.",
     conditions: ["Rheumatic Mitral Stenosis", "History of Rheumatic Fever"], medications: ["Warfarin", "Metoprolol 50mg daily", "Furosemide 20mg daily"],
     completenessItems: [
-      { id: "ci-45", label: "Previous Echo Report", required: true, status: s(true), confidence: 96, pageNumber: 2 },
-      { id: "ci-46", label: "INR Results", required: true, status: s(true), confidence: 94, pageNumber: 4 },
-      { id: "ci-47", label: "Medication List", required: true, status: s(true), confidence: 93, pageNumber: 1 },
-      { id: "ci-48", label: "ECG", required: false, status: s(true), confidence: 91, pageNumber: 5 },
+      { id: "ci-45", label: "Previous Echo Report", required: true, status: s(true), confidence: 96, pageNumber: 2, documentId: "doc-ref11-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-46", label: "INR Results", required: true, status: s(true), confidence: 94, pageNumber: 4, documentId: "doc-ref11-1", sourceRegion: createSourceRegion("bloodwork") },
+      { id: "ci-47", label: "Medication List", required: true, status: s(true), confidence: 93, pageNumber: 1, documentId: "doc-ref11-1", sourceRegion: createSourceRegion("medications") },
+      { id: "ci-48", label: "ECG", required: false, status: s(true), confidence: 91, pageNumber: 5, documentId: "doc-ref11-1", sourceRegion: createSourceRegion("ecg") },
     ],
     completenessScore: 100, aiConfidence: 93.2,
     assignedCardiologist: "card-2", assignedCardiologistName: "Dr. Anika Patel",
@@ -1069,11 +1158,11 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
       {
         id: "doc-ref11-1", faxId: "fax-ref11-1", type: "original-referral", label: "Referral Package", pageCount: 5, receivedAt: new Date(Date.now() - 53 * 60 * 60 * 1000).toISOString(),
         pages: [
-          { id: "p-ref11-1", pageNumber: 1, detectedContent: "Referral letter from Dr. Osei" },
-          { id: "p-ref11-2", pageNumber: 2, detectedContent: "Previous echocardiogram report" },
-          { id: "p-ref11-3", pageNumber: 3, detectedContent: "Clinical history" },
-          { id: "p-ref11-4", pageNumber: 4, detectedContent: "Recent INR results" },
-          { id: "p-ref11-5", pageNumber: 5, detectedContent: "ECG showing AF" },
+          { id: "p-ref11-1", pageNumber: 1, detectedContent: "Referral letter from Dr. Osei", extractedFields: createReferralExtractedFields("doc-ref11-1", 1, "Elena Dimitriou", "Mitral Stenosis Reassessment") },
+          { id: "p-ref11-2", pageNumber: 2, detectedContent: "Previous echocardiogram report", extractedFields: [] },
+          { id: "p-ref11-3", pageNumber: 3, detectedContent: "Clinical history", extractedFields: [] },
+          { id: "p-ref11-4", pageNumber: 4, detectedContent: "Recent INR results", extractedFields: [] },
+          { id: "p-ref11-5", pageNumber: 5, detectedContent: "ECG showing AF", extractedFields: [] },
         ],
       },
     ],
@@ -1099,27 +1188,28 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
   },
   {
     id: "ref-12", faxId: "fax-30", patientId: "pat-23", patientName: "Yuki Tanaka",
+    patientDob: "1980-01-16", patientOhip: "3300445566ST",
     referringPhysicianId: "phys-13", referringPhysicianName: "Dr. David Park",
     referringPhysicianFax: "4165558002",
     clinicName: "North York Medical Clinic", clinicCity: "Toronto",
     receivedDate: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(), status: "routed", priority: "routine",
-    isUrgent: false,
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 95,
     reasonForReferral: "WPW syndrome management. Recurrent palpitations despite Flecainide. Consider ablation.",
     clinicalHistory: "34-year-old male with WPW diagnosed at age 22. Multiple ER visits for SVT. Currently on Flecainide 100mg BID with breakthrough symptoms.",
     conditions: ["WPW Syndrome", "Supraventricular Tachycardia"], medications: ["Flecainide 100mg BID"],
     completenessItems: [
-      { id: "ci-49", label: "Previous ECGs", required: true, status: s(true), confidence: 97, pageNumber: 2 },
-      { id: "ci-50", label: "Holter Monitor Report", required: true, status: s(true), confidence: 95, pageNumber: 3 },
-      { id: "ci-51", label: "Medication History", required: true, status: s(true), confidence: 94, pageNumber: 1 },
+      { id: "ci-49", label: "Previous ECGs", required: true, status: s(true), confidence: 97, pageNumber: 2, documentId: "doc-ref12-1", sourceRegion: createSourceRegion("ecg") },
+      { id: "ci-50", label: "Holter Monitor Report", required: true, status: s(true), confidence: 95, pageNumber: 3, documentId: "doc-ref12-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-51", label: "Medication History", required: true, status: s(true), confidence: 94, pageNumber: 1, documentId: "doc-ref12-1", sourceRegion: createSourceRegion("medications") },
     ],
     completenessScore: 100, aiConfidence: 95.3,
     documents: [
       {
         id: "doc-ref12-1", faxId: "fax-ref12-1", type: "original-referral", label: "Referral Package", pageCount: 3, receivedAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
         pages: [
-          { id: "p-ref12-1", pageNumber: 1, detectedContent: "Referral letter with medication history" },
-          { id: "p-ref12-2", pageNumber: 2, detectedContent: "ECG showing delta waves" },
-          { id: "p-ref12-3", pageNumber: 3, detectedContent: "Holter report with SVT episodes" },
+          { id: "p-ref12-1", pageNumber: 1, detectedContent: "Referral letter with medication history", extractedFields: createReferralExtractedFields("doc-ref12-1", 1, "Yuki Tanaka", "WPW Ablation Referral") },
+          { id: "p-ref12-2", pageNumber: 2, detectedContent: "ECG showing delta waves", extractedFields: [] },
+          { id: "p-ref12-3", pageNumber: 3, detectedContent: "Holter report with SVT episodes", extractedFields: [] },
         ],
       },
     ],
@@ -1145,19 +1235,20 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
   },
   {
     id: "ref-13", faxId: "fax-36", patientId: "pat-29", patientName: "Karen Taylor",
+    patientDob: "1974-12-01", patientOhip: "9900001122EF",
     referringPhysicianId: "phys-14", referringPhysicianName: "Dr. Catherine Leclerc",
     referringPhysicianFax: "6135551302",
     clinicName: "Orleans Family Medicine", clinicCity: "Ottawa",
-    receivedDate: new Date(Date.now() - 122 * 60 * 60 * 1000).toISOString(), status: "accepted", priority: "routine",
-    isUrgent: false,
+    receivedDate: new Date(Date.now() - 122 * 60 * 60 * 1000).toISOString(), status: "routed", priority: "routine",
+    isUrgent: false, urgencyRating: "not-urgent", urgencyConfirmedBy: "ai", urgencyConfidence: 94,
     reasonForReferral: "Post-myocarditis follow-up. Persistent fatigue and reduced exercise tolerance. Echo requested.",
     clinicalHistory: "28-year-old female with viral myocarditis 4 months ago. Initial LVEF 35%, recovered to 50%. Ongoing symptoms.",
     conditions: ["Post-Viral Myocarditis", "Reduced Exercise Tolerance"], medications: ["Ramipril 5mg daily", "Bisoprolol 2.5mg daily"],
     completenessItems: [
-      { id: "ci-52", label: "Previous Echo Reports", required: true, status: s(true), confidence: 96, pageNumber: 2 },
-      { id: "ci-53", label: "Cardiac MRI Report", required: true, status: s(true), confidence: 97, pageNumber: 3 },
-      { id: "ci-54", label: "Medication List", required: true, status: s(true), confidence: 94, pageNumber: 1 },
-      { id: "ci-55", label: "Symptom History", required: true, status: s(true), confidence: 92, pageNumber: 4 },
+      { id: "ci-52", label: "Previous Echo Reports", required: true, status: s(true), confidence: 96, pageNumber: 2, documentId: "doc-ref13-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-53", label: "Cardiac MRI Report", required: true, status: s(true), confidence: 97, pageNumber: 3, documentId: "doc-ref13-1", sourceRegion: createSourceRegion("imaging") },
+      { id: "ci-54", label: "Medication List", required: true, status: s(true), confidence: 94, pageNumber: 1, documentId: "doc-ref13-1", sourceRegion: createSourceRegion("medications") },
+      { id: "ci-55", label: "Symptom History", required: true, status: s(true), confidence: 92, pageNumber: 4, documentId: "doc-ref13-1", sourceRegion: createSourceRegion("clinical") },
     ],
     completenessScore: 100, aiConfidence: 94.8,
     assignedCardiologist: "card-3", assignedCardiologistName: "Dr. Marcus Chen",
@@ -1165,10 +1256,10 @@ AI Agent: You're welcome. Thank you for your time. Goodbye.
       {
         id: "doc-ref13-1", faxId: "fax-ref13-1", type: "original-referral", label: "Referral Package", pageCount: 4, receivedAt: new Date(Date.now() - 122 * 60 * 60 * 1000).toISOString(),
         pages: [
-          { id: "p-ref13-1", pageNumber: 1, detectedContent: "Referral letter with medications" },
-          { id: "p-ref13-2", pageNumber: 2, detectedContent: "Serial echo reports" },
-          { id: "p-ref13-3", pageNumber: 3, detectedContent: "Cardiac MRI findings" },
-          { id: "p-ref13-4", pageNumber: 4, detectedContent: "Symptom timeline" },
+          { id: "p-ref13-1", pageNumber: 1, detectedContent: "Referral letter with medications", extractedFields: createReferralExtractedFields("doc-ref13-1", 1, "Karen Taylor", "Post-Myocarditis Follow-up") },
+          { id: "p-ref13-2", pageNumber: 2, detectedContent: "Serial echo reports", extractedFields: [] },
+          { id: "p-ref13-3", pageNumber: 3, detectedContent: "Cardiac MRI findings", extractedFields: [] },
+          { id: "p-ref13-4", pageNumber: 4, detectedContent: "Symptom timeline", extractedFields: [] },
         ],
       },
     ],

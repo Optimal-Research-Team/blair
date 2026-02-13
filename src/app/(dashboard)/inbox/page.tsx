@@ -21,7 +21,6 @@ import {
   X,
   Inbox,
   AlertTriangle,
-  Zap,
   Eye,
   RefreshCw,
 } from "lucide-react";
@@ -30,21 +29,18 @@ import { cn } from "@/lib/utils";
 export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<FaxStatus | "all">("all");
-  const [priorityFilter, setPriorityFilter] = useState<"stat" | "urgent" | "routine" | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<"urgent" | "routine" | "all">("all");
 
   const debouncedSearch = useDebounce(search, 300);
 
   // Calculate stats
   const stats = useMemo(() => {
     const pendingReview = mockFaxes.filter((f) => f.status === "pending-review").length;
-    const statCount = mockFaxes.filter(
-      (f) => f.priority === "stat" && f.status !== "completed" && f.status !== "auto-filed"
-    ).length;
     const urgentCount = mockFaxes.filter(
       (f) => f.priority === "urgent" && f.status !== "completed" && f.status !== "auto-filed"
     ).length;
 
-    return { total: mockFaxes.length, pendingReview, statCount, urgentCount };
+    return { total: mockFaxes.length, pendingReview, urgentCount };
   }, []);
 
   const filteredFaxes = useMemo(() => {
@@ -73,9 +69,9 @@ export default function InboxPage() {
       );
     }
 
-    // Sort: STAT first, then urgent, then routine. Within each, by receivedAt desc
+    // Sort: urgent first, then routine. Within each, by receivedAt desc
     result.sort((a, b) => {
-      const priorityOrder = { stat: 0, urgent: 1, routine: 2 };
+      const priorityOrder = { urgent: 0, routine: 1 };
       const statusOrder = {
         "flagged": 0,
         "pending-review": 1,
@@ -104,15 +100,6 @@ export default function InboxPage() {
   const hasFilters = search || statusFilter !== "all" || priorityFilter !== "all";
 
   // Quick filter handlers
-  const toggleStatFilter = () => {
-    if (priorityFilter === "stat") {
-      setPriorityFilter("all");
-    } else {
-      setPriorityFilter("stat");
-      setStatusFilter("all");
-    }
-  };
-
   const toggleUrgentFilter = () => {
     if (priorityFilter === "urgent") {
       setPriorityFilter("all");
@@ -172,22 +159,6 @@ export default function InboxPage() {
 
         {/* Right: Quick Filters (these ARE the stats) */}
         <div className="flex items-center gap-2">
-          {stats.statCount > 0 && (
-            <Button
-              variant={priorityFilter === "stat" ? "default" : "outline"}
-              size="sm"
-              onClick={toggleStatFilter}
-              className={cn(
-                "h-8 text-xs",
-                priorityFilter === "stat"
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "border-red-200 text-red-700 hover:bg-red-50"
-              )}
-            >
-              <Zap className="h-3 w-3 mr-1" />
-              {stats.statCount} STAT
-            </Button>
-          )}
           {stats.urgentCount > 0 && (
             <Button
               variant={priorityFilter === "urgent" ? "default" : "outline"}
@@ -196,8 +167,8 @@ export default function InboxPage() {
               className={cn(
                 "h-8 text-xs",
                 priorityFilter === "urgent"
-                  ? "bg-orange-500 hover:bg-orange-600"
-                  : "border-orange-200 text-orange-700 hover:bg-orange-50"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "border-red-200 text-red-700 hover:bg-red-50"
               )}
             >
               <AlertTriangle className="h-3 w-3 mr-1" />

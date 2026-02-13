@@ -42,3 +42,16 @@ export function formatConfidence(confidence: number): string {
 export function formatPercentage(value: number): string {
   return `${value.toFixed(1)}%`;
 }
+
+export function formatGender(gender: "M" | "F" | "X"): string {
+  switch (gender) {
+    case "M": return "Male";
+    case "F": return "Female";
+    case "X": return "Other";
+    default: return gender;
+  }
+}
+
+export function formatGenderShort(gender: "M" | "F" | "X"): string {
+  return gender;
+}

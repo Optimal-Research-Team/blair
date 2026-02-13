@@ -56,8 +56,7 @@ export function WorklistItemCard({
     <Card
       className={cn(
         "border transition-all",
-        fax.priority === "stat" && "border-l-4 border-l-red-500 shadow-sm shadow-red-100",
-        fax.priority === "urgent" && "border-l-4 border-l-amber-500",
+        fax.priority === "urgent" && "border-l-4 border-l-red-500 shadow-sm shadow-red-100",
         isLockedByOther && "opacity-75 bg-muted/30",
         isLockedByMe && "ring-2 ring-primary/50"
       )}

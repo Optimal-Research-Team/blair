@@ -3,12 +3,32 @@
 import { use, useState, useMemo, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { mockReferrals } from "@/data/mock-referrals";
+import { mockPatients } from "@/data/mock-patients";
+import { mockPhysicians } from "@/data/mock-physicians";
+import { Patient, Physician } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { UrgencyRating } from "@/types/referral";
 import { PriorityBadge } from "@/components/inbox/priority-badge";
 import { cn } from "@/lib/utils";
-import { formatRelativeTime } from "@/lib/format";
+import { formatRelativeTime, formatDate, formatPHN } from "@/lib/format";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -31,12 +51,30 @@ import {
   Stethoscope,
   FileCheck,
   ArrowUpRight,
+  Save,
+  Scissors,
+  AlertTriangle,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 import { ReferralDocument, ReferralDocumentPage, TimelineEvent } from "@/types/referral";
 import { CompletenessPanel } from "@/components/referral/completeness-panel";
 import { CommunicationsThread } from "@/components/referral/communications-thread";
 import { ComposeSlideOver, ComposeData } from "@/components/referral/compose-slide-over";
+import { PatientIdentificationCard } from "@/components/patient/patient-identification-card";
+import { ProviderIdentificationCard } from "@/components/provider/provider-identification-card";
+import { HighlightOverlay } from "@/components/highlight/highlight-overlay";
+import { useHighlightStore } from "@/stores/use-highlight-store";
+import {
+  useIntegrationStore,
+  createUrgentReferralTicket,
+  createUrgentReferralSlackActivity,
+} from "@/stores/use-integration-store";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -46,14 +84,11 @@ interface Props {
 const STATUS_STEPS = [
   { key: "triage", label: "Triage" },
   { key: "incomplete", label: "Incomplete" },
-  { key: "pending-response", label: "Pending" },
-  { key: "complete", label: "Complete" },
-  { key: "routed", label: "Routed" },
-  { key: "accepted", label: "Accepted" },
-  { key: "booked", label: "Booked" },
+  { key: "pending-review", label: "Pending Review" },
+  { key: "routed", label: "Routed to Cerebrum" },
 ];
 
-const STATUS_ORDER = ["triage", "incomplete", "pending-response", "complete", "routed", "accepted", "declined", "booked"];
+const STATUS_ORDER = ["triage", "incomplete", "pending-review", "routed", "declined"];
 
 export default function ReferralDetailPage({ params }: Props) {
   return (
@@ -88,6 +123,122 @@ function ReferralDetailContent({ params }: Props) {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeChannel, setComposeChannel] = useState<"fax" | "phone" | "email" | undefined>(undefined);
 
+  // Urgency triage state
+  const [urgencyRating, setUrgencyRating] = useState<UrgencyRating>(
+    referral?.urgencyRating || "unknown"
+  );
+  const [urgencyConfirmed, setUrgencyConfirmed] = useState<boolean>(
+    referral?.urgencyConfirmedBy === "human" ||
+    (referral?.urgencyConfirmedBy === "ai" && (referral?.urgencyConfidence || 0) >= 90)
+  );
+
+  // Integration dialogs state
+  const [showZendeskDialog, setShowZendeskDialog] = useState(false);
+  const [showSlackDialog, setShowSlackDialog] = useState(false);
+  const [createdTicketNumber, setCreatedTicketNumber] = useState("");
+  const [createdSlackChannel, setCreatedSlackChannel] = useState("");
+
+  // Integration store
+  const { addZendeskTicket, addSlackActivity } = useIntegrationStore();
+
+  const handleConfirmUrgency = () => {
+    if (urgencyRating === "unknown") {
+      toast.error("Please select an urgency level first");
+      return;
+    }
+    setUrgencyConfirmed(true);
+
+    if (urgencyRating === "urgent" && referral) {
+      // Create Zendesk ticket
+      const ticket = createUrgentReferralTicket(referral.id, referral.patientName);
+      addZendeskTicket(ticket);
+      setCreatedTicketNumber(ticket.ticketNumber);
+
+      // Create Slack notification
+      const slackActivity = createUrgentReferralSlackActivity(referral.id, referral.patientName);
+      addSlackActivity(slackActivity);
+      setCreatedSlackChannel(slackActivity.channel);
+
+      // Show success toast and then dialogs
+      toast.success("Referral marked as URGENT", {
+        description: "Creating Zendesk ticket and Slack notification...",
+      });
+
+      // Show Zendesk dialog first, then Slack
+      setTimeout(() => setShowZendeskDialog(true), 500);
+    } else {
+      toast.success("Referral marked as NOT URGENT");
+    }
+  };
+
+  // Decline confirmation dialog state
+  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false);
+  const [showDeclineReason, setShowDeclineReason] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+
+  const handleDeclineClick = () => {
+    setShowDeclineConfirm(true);
+  };
+
+  const handleDeclineConfirm = () => {
+    setShowDeclineConfirm(false);
+    setShowDeclineReason(true);
+  };
+
+  const handleDeclineFax = () => {
+    if (!declineReason.trim()) {
+      toast.error("Please provide a reason for declining");
+      return;
+    }
+    toast.success("Decline reason sent via fax", {
+      description: `Fax sent to ${referral?.referringPhysicianName}`,
+    });
+    setShowDeclineReason(false);
+    setDeclineReason("");
+    setTimeout(() => router.push("/referrals"), 1500);
+  };
+
+  // Patient identification state
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(() => {
+    return mockPatients.find((p) => p.id === referral?.patientId) || null;
+  });
+
+  const handlePatientChange = (patient: Patient) => {
+    setSelectedPatient(patient);
+    toast.success(`Patient updated to ${patient.firstName} ${patient.lastName}`);
+  };
+
+  // Find matching physician based on referring physician fax
+  const { matchedPhysician, providerMatchConfidence } = useMemo(() => {
+    const physicianFaxDigits = referral?.referringPhysicianFax?.replace(/\D/g, "") || "";
+    if (physicianFaxDigits.length > 0) {
+      const found = mockPhysicians.find((p) => {
+        const pFaxDigits = p.fax.replace(/\D/g, "");
+        return pFaxDigits === physicianFaxDigits;
+      });
+      return { matchedPhysician: found, providerMatchConfidence: found ? 95 : undefined };
+    }
+    return { matchedPhysician: null, providerMatchConfidence: undefined };
+  }, [referral?.referringPhysicianFax]);
+
+  const [selectedProvider, setSelectedProvider] = useState<Physician | null>(
+    matchedPhysician || null
+  );
+
+  const handleProviderChange = (provider: Physician) => {
+    setSelectedProvider(provider);
+    toast.success(`Provider updated to Dr. ${provider.firstName} ${provider.lastName}`);
+  };
+
+  // Highlight store for linked scrolling
+  const {
+    activePageNumber,
+    activeDocumentId,
+    activeBoundingBox,
+    isTransitioning,
+    setTransitioning,
+  } = useHighlightStore();
+
   // Sync tab with URL params when they change
   useEffect(() => {
     if (tabParam === "comms") {
@@ -96,6 +247,43 @@ function ReferralDetailContent({ params }: Props) {
       setActiveTab("timeline");
     }
   }, [tabParam]);
+
+  // Auto-navigate to highlighted page/document
+  useEffect(() => {
+    if (!referral || activePageNumber === null) return;
+
+    // Find the target document index based on activeDocumentId
+    let targetDocIndex = selectedDocIndex;
+    if (activeDocumentId) {
+      const docIdx = referral.documents.findIndex((d) => d.id === activeDocumentId);
+      if (docIdx >= 0 && docIdx !== selectedDocIndex) {
+        targetDocIndex = docIdx;
+      }
+    }
+
+    // Get the target page index within that document
+    const targetPageIndex = activePageNumber - 1;
+    const targetDoc = referral.documents[targetDocIndex];
+
+    // Only navigate if we're on a different page/document
+    if (
+      targetDocIndex !== selectedDocIndex ||
+      (targetDoc && targetPageIndex !== selectedPageIndex && targetPageIndex < targetDoc.pages.length)
+    ) {
+      setTransitioning(true);
+      setSelectedDocIndex(targetDocIndex);
+      setSelectedPageIndex(Math.min(targetPageIndex, targetDoc?.pages.length - 1 || 0));
+      const timer = setTimeout(() => setTransitioning(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [activePageNumber, activeDocumentId, referral, selectedDocIndex, selectedPageIndex, setTransitioning]);
+
+  // Check if highlight should be visible on current page
+  const isHighlightVisible =
+    activeBoundingBox !== null &&
+    activePageNumber === selectedPageIndex + 1 &&
+    (!activeDocumentId || activeDocumentId === referral?.documents[selectedDocIndex]?.id) &&
+    !isTransitioning;
 
   if (!referral) {
     return (
@@ -125,6 +313,18 @@ function ReferralDetailContent({ params }: Props) {
   const currentDoc = referral.documents[selectedDocIndex];
   const currentPage = currentDoc?.pages[selectedPageIndex];
   const totalPages = allPages.length;
+
+  // Get patient info extracted fields from the original referral's first page
+  const { patientExtractedFields, originalReferralDocId } = useMemo(() => {
+    const originalReferral = referral.documents.find(d => d.type === "original-referral");
+    if (originalReferral && originalReferral.pages.length > 0) {
+      return {
+        patientExtractedFields: originalReferral.pages[0].extractedFields || [],
+        originalReferralDocId: originalReferral.id,
+      };
+    }
+    return { patientExtractedFields: [], originalReferralDocId: undefined };
+  }, [referral.documents]);
 
   // Calculate global page index for navigation
   const globalPageIndex = useMemo(() => {
@@ -269,15 +469,25 @@ function ReferralDetailContent({ params }: Props) {
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {referral.patientDob && (
+                  <>
+                    <span>DOB: {formatDate(referral.patientDob)}</span>
+                    <span>·</span>
+                  </>
+                )}
+                {referral.patientOhip && (
+                  <>
+                    <span>OHIP: {formatPHN(referral.patientOhip)}</span>
+                    <span>·</span>
+                  </>
+                )}
                 <span className="flex items-center gap-1">
                   <Stethoscope className="h-3 w-3" />
                   {referral.referringPhysicianName}
                 </span>
                 <span>·</span>
                 <span>{formatRelativeTime(referral.receivedDate)}</span>
-                <span>·</span>
-                <span>{referral.documents.reduce((acc, d) => acc + d.pageCount, 0)} pages</span>
               </div>
             </div>
           </div>
@@ -322,18 +532,18 @@ function ReferralDetailContent({ params }: Props) {
       {/* Main content: 3-panel layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Document thumbnails */}
-        <div className="w-48 flex-shrink-0 border-r bg-muted/30 overflow-y-auto p-2">
+        <div className="w-24 flex-shrink-0 border-r bg-muted/30 overflow-y-auto p-2">
           {referral.documents.map((doc, docIndex) => (
-            <div key={doc.id} className="mb-4">
+            <div key={doc.id} className="mb-3">
               {/* Document header */}
               <div className={cn(
-                "px-2 py-1.5 rounded-t text-xs font-medium flex items-center gap-1.5",
+                "px-1.5 py-1 rounded-t text-[10px] font-medium flex items-center gap-1",
                 doc.type === "original-referral" && "bg-blue-100 text-blue-800",
                 doc.type === "response" && "bg-emerald-100 text-emerald-800",
                 doc.type === "additional" && "bg-gray-100 text-gray-800"
               )}>
-                {doc.type === "original-referral" && <FileText className="h-3 w-3" />}
-                {doc.type === "response" && <ArrowUpRight className="h-3 w-3" />}
+                {doc.type === "original-referral" && <FileText className="h-2.5 w-2.5" />}
+                {doc.type === "response" && <ArrowUpRight className="h-2.5 w-2.5" />}
                 <span className="truncate">{doc.label}</span>
               </div>
 
@@ -360,8 +570,11 @@ function ReferralDetailContent({ params }: Props) {
           ))}
         </div>
 
-        {/* Center: Document viewer */}
-        <div className="flex-1 flex flex-col bg-muted/10">
+        {/* Resizable document viewer and review panel */}
+        <ResizablePanelGroup orientation="horizontal" className="flex-1">
+          {/* Center: Document viewer */}
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <div className="flex flex-col h-full bg-muted/10">
           {/* Viewer toolbar */}
           <div className="flex-shrink-0 border-b bg-background px-4 py-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -415,12 +628,21 @@ function ReferralDetailContent({ params }: Props) {
           {/* Document display area */}
           <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
             <div
-              className="bg-white shadow-lg rounded border"
+              className="bg-white shadow-lg rounded border relative"
               style={{
                 width: `${(8.5 * 72 * zoom) / 100}px`,
                 minHeight: `${(11 * 72 * zoom) / 100}px`,
               }}
             >
+              {/* Highlight overlay for linked scrolling */}
+              {activeBoundingBox && (
+                <HighlightOverlay
+                  boundingBox={activeBoundingBox}
+                  zoom={zoom}
+                  isVisible={isHighlightVisible}
+                />
+              )}
+
               {/* Mock fax content */}
               <div className="p-8 text-sm text-muted-foreground">
                 <div className="text-center mb-6 pb-4 border-b">
@@ -461,10 +683,14 @@ function ReferralDetailContent({ params }: Props) {
               </div>
             </div>
           </div>
-        </div>
+            </div>
+          </ResizablePanel>
 
-        {/* Right: Tabbed review panel */}
-        <div className="w-96 flex-shrink-0 border-l bg-background flex flex-col">
+          <ResizableHandle withHandle />
+
+          {/* Right: Tabbed review panel */}
+          <ResizablePanel defaultSize={50} minSize={25}>
+            <div className="border-l bg-background flex flex-col h-full">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex flex-col h-full">
             <TabsList className="w-full rounded-none border-b bg-transparent h-auto p-0">
               <TabsTrigger
@@ -494,7 +720,121 @@ function ReferralDetailContent({ params }: Props) {
             </TabsList>
 
             {/* Review Tab */}
-            <TabsContent value="review" className="flex-1 overflow-y-auto m-0 p-4 space-y-4">
+            <TabsContent value="review" className="flex-1 overflow-y-auto m-0 p-4 space-y-3">
+              {/* Patient Identification */}
+              <PatientIdentificationCard
+                patient={selectedPatient}
+                matchConfidence={referral.aiConfidence}
+                matchStatus={selectedPatient ? "matched" : "not-found"}
+                onPatientChange={handlePatientChange}
+                extractedFields={patientExtractedFields}
+                documentId={originalReferralDocId}
+              />
+
+              {/* Provider Identification */}
+              <ProviderIdentificationCard
+                provider={
+                  selectedProvider
+                    ? {
+                        name: `Dr. ${selectedProvider.firstName} ${selectedProvider.lastName}`,
+                        designation: selectedProvider.designation,
+                        clinicName: selectedProvider.clinicName,
+                        clinicAddress: selectedProvider.clinicAddress,
+                        clinicCity: selectedProvider.clinicCity,
+                        clinicProvince: selectedProvider.clinicProvince,
+                        phone: selectedProvider.phone,
+                        fax: selectedProvider.fax,
+                        email: selectedProvider.email,
+                        cpsoNumber: selectedProvider.cpsoNumber,
+                      }
+                    : {
+                        name: referral.referringPhysicianName,
+                        clinicName: referral.clinicName,
+                        clinicCity: referral.clinicCity,
+                        phone: referral.referringPhysicianPhone,
+                        fax: referral.referringPhysicianFax,
+                        email: referral.referringPhysicianEmail,
+                      }
+                }
+                matchConfidence={selectedProvider ? providerMatchConfidence : undefined}
+                onProviderChange={handleProviderChange}
+              />
+
+              {/* Urgency Triage */}
+              <div className="border rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Urgency Triage</span>
+                    {referral.urgencyConfirmedBy === "ai" && referral.urgencyConfidence && !urgencyConfirmed && (
+                      <Badge variant="outline" className="text-[10px]">
+                        AI {referral.urgencyConfidence}%
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={urgencyRating}
+                      onValueChange={(val) => {
+                        setUrgencyRating(val as UrgencyRating);
+                        // Allow re-confirmation by resetting confirmed state when changed
+                        if (urgencyConfirmed) setUrgencyConfirmed(false);
+                      }}
+                    >
+                      <SelectTrigger className={cn(
+                        "w-[130px] h-8 text-xs",
+                        urgencyRating === "urgent" && "border-red-300 bg-red-50 text-red-700",
+                        urgencyRating === "not-urgent" && "border-emerald-300 bg-emerald-50 text-emerald-700",
+                        urgencyRating === "unknown" && "border-amber-300 bg-amber-50 text-amber-700"
+                      )}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unknown">
+                          <span className="flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3 text-amber-500" />
+                            Unknown
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="urgent">
+                          <span className="flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3 text-red-500" />
+                            Urgent
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="not-urgent">
+                          <span className="flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                            Not Urgent
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {!urgencyConfirmed ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs px-3"
+                        onClick={handleConfirmUrgency}
+                        disabled={urgencyRating === "unknown"}
+                      >
+                        <Check className="h-3 w-3 mr-1" />
+                        Confirm
+                      </Button>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 h-8 px-3 flex items-center">
+                        <Check className="h-2.5 w-2.5 mr-1" />
+                        Confirmed
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                {urgencyRating === "unknown" && !urgencyConfirmed && (
+                  <p className="text-xs text-amber-600 mt-2">
+                    Urgency must be confirmed before referral can progress from Triage stage.
+                  </p>
+                )}
+              </div>
+
               {/* Completeness Panel */}
               <CompletenessPanel
                 items={completenessItems}
@@ -558,19 +898,58 @@ function ReferralDetailContent({ params }: Props) {
                 </div>
               )}
 
-              {/* Action buttons - only show Accept/Decline when complete */}
-              {!isDeclined && referral.status !== "booked" && completenessScore === 100 && (
-                <div className="border-t pt-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleAccept}>
-                      <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                      Accept
-                    </Button>
-                    <Button variant="destructive" onClick={handleDecline}>
-                      <XCircle className="h-4 w-4 mr-1.5" />
-                      Decline
-                    </Button>
-                  </div>
+              {/* Review action buttons */}
+              <div className="border-t pt-4 space-y-2">
+                <Button className="w-full h-9" onClick={() => toast.success("Review saved successfully")}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Review
+                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      toast.success("Referral marked as completed and filed", {
+                        description: `Filed referral for ${referral.patientName}`,
+                      });
+                      setTimeout(() => router.push("/worklist"), 1500);
+                    }}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                    Complete & File
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-9 text-xs"
+                    disabled={totalPages <= 1}
+                    asChild={totalPages > 1}
+                  >
+                    {totalPages > 1 ? (
+                      <Link href={`/split/${referral.id}`}>
+                        <Scissors className="h-3.5 w-3.5 mr-1" />
+                        Split Document
+                      </Link>
+                    ) : (
+                      <>
+                        <Scissors className="h-3.5 w-3.5 mr-1" />
+                        Split Document
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Decline Referral - at the very bottom */}
+              {!isDeclined && referral.status !== "routed" && (
+                <div className="border-t pt-4 mt-4">
+                  <Button
+                    variant="outline"
+                    className="w-full h-9 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                    onClick={handleDeclineClick}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Decline Referral
+                  </Button>
                 </div>
               )}
             </TabsContent>
@@ -608,7 +987,9 @@ function ReferralDetailContent({ params }: Props) {
               </div>
             </TabsContent>
           </Tabs>
-        </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
       {/* Compose Slide-Over */}
@@ -624,6 +1005,154 @@ function ReferralDetailContent({ params }: Props) {
         preSelectedChannel={composeChannel}
         onSend={handleComposeSend}
       />
+
+      {/* Decline Confirmation Dialog */}
+      <Dialog open={showDeclineConfirm} onOpenChange={setShowDeclineConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline Referral</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to decline this referral for {referral.patientName}?
+              This action will require you to provide a reason and fax it back to the referring physician.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeclineConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeclineConfirm}>
+              Yes, Decline Referral
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Decline Reason Dialog */}
+      <Dialog open={showDeclineReason} onOpenChange={setShowDeclineReason}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline Reason</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for declining this referral. This will be faxed to {referral.referringPhysicianName}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Enter reason for declining referral..."
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+              className="min-h-[120px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeclineReason(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleDeclineFax} disabled={!declineReason.trim()}>
+              <Send className="h-4 w-4 mr-2" />
+              Send Decline via Fax
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Zendesk Ticket Created Dialog */}
+      <Dialog open={showZendeskDialog} onOpenChange={(open) => {
+        setShowZendeskDialog(open);
+        // Show Slack dialog after Zendesk is closed
+        if (!open) {
+          setTimeout(() => setShowSlackDialog(true), 300);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
+                <svg className="h-5 w-5 text-orange-600" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              </div>
+              <div>
+                <DialogTitle className="text-lg">Zendesk Ticket Created</DialogTitle>
+              </div>
+            </div>
+            <DialogDescription className="text-left">
+              An urgent ticket has been automatically created in Zendesk to track this referral.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-orange-800">Ticket #{createdTicketNumber}</p>
+                <p className="text-xs text-orange-600">Urgent referral: {referral.patientName}</p>
+              </div>
+              <Badge className="bg-red-100 text-red-700 border-red-200">Urgent</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This ticket will be automatically closed when the referral is routed.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowZendeskDialog(false)}
+            >
+              Close
+            </Button>
+            <Button asChild>
+              <Link href="/integrations/zendesk">
+                View in Zendesk Feed
+              </Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Slack Notification Sent Dialog */}
+      <Dialog open={showSlackDialog} onOpenChange={setShowSlackDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+                <svg className="h-5 w-5 text-purple-600" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                </svg>
+              </div>
+              <div>
+                <DialogTitle className="text-lg">Slack Notification Sent</DialogTitle>
+              </div>
+            </div>
+            <DialogDescription className="text-left">
+              An urgent alert has been posted to Slack to notify the team.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-purple-800">{createdSlackChannel}</p>
+                <p className="text-xs text-purple-600">🚨 Urgent referral triaged: {referral.patientName}</p>
+              </div>
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Sent</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Team members can view and act on this alert from Slack or the Blair Slack feed.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSlackDialog(false)}
+            >
+              Close
+            </Button>
+            <Button asChild>
+              <Link href="/integrations/slack">
+                View in Slack Feed
+              </Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

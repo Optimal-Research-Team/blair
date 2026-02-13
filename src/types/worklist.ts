@@ -39,6 +39,9 @@ export interface WorklistItem {
   pageCount: number;
   receivedAt: string;
   description: string;
+  // Patient info update detection
+  hasPatientInfoUpdate?: boolean;
+  patientInfoUpdateType?: "phone" | "email" | "address" | "healthCard";
 }
 
 export interface QueueStats {

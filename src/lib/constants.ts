@@ -2,8 +2,7 @@ export const APP_NAME = "Blair";
 export const APP_VERSION = "1.0.0-beta";
 
 export const PRIORITY_COLORS = {
-  stat: { bg: "bg-red-100", text: "text-red-700", border: "border-red-200", dot: "bg-red-500" },
-  urgent: { bg: "bg-amber-100", text: "text-amber-700", border: "border-amber-200", dot: "bg-amber-500" },
+  urgent: { bg: "bg-red-100", text: "text-red-700", border: "border-red-200", dot: "bg-red-500" },
   routine: { bg: "bg-green-100", text: "text-green-700", border: "border-green-200", dot: "bg-green-500" },
 } as const;
 

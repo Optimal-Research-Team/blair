@@ -13,8 +13,8 @@ export function InboxStats({ faxes }: InboxStatsProps) {
   const inProgress = faxes.filter((f) => f.status === "in-progress").length;
   const autoFiled = faxes.filter((f) => f.status === "auto-filed").length;
   const flagged = faxes.filter((f) => f.status === "flagged").length;
-  const statCount = faxes.filter(
-    (f) => f.priority === "stat" && f.status !== "completed" && f.status !== "auto-filed"
+  const urgentCount = faxes.filter(
+    (f) => f.priority === "urgent" && f.status !== "completed" && f.status !== "auto-filed"
   ).length;
 
   const stats = [
@@ -34,10 +34,10 @@ export function InboxStats({ faxes }: InboxStatsProps) {
           <span className="text-sm font-semibold">{stat.value}</span>
         </div>
       ))}
-      {statCount > 0 && (
+      {urgentCount > 0 && (
         <div className="flex items-center gap-1.5 bg-red-100 text-red-700 rounded-full px-3 py-1 text-xs font-semibold animate-pulse">
           <AlertTriangle className="h-3 w-3" />
-          {statCount} STAT
+          {urgentCount} Urgent
         </div>
       )}
     </div>

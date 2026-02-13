@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import { CompletenessItem } from "@/types/referral";
 import { cn } from "@/lib/utils";
+import { useHighlightStore } from "@/stores/use-highlight-store";
 import {
   ChevronDown,
   CheckCircle2,
@@ -50,6 +51,24 @@ export function CompletenessPanel({
   onAddItem,
 }: CompletenessPanelProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const { setHighlight, clearHighlight } = useHighlightStore();
+
+  // Create hover handlers for completeness items with sourceRegion
+  const createItemHoverHandlers = (item: CompletenessItem) => {
+    if (!item.sourceRegion || !item.pageNumber) {
+      return { onMouseEnter: undefined, onMouseLeave: undefined };
+    }
+    return {
+      onMouseEnter: () =>
+        setHighlight({
+          fieldId: item.id,
+          pageNumber: item.pageNumber!,
+          documentId: item.documentId,
+          boundingBox: item.sourceRegion!,
+        }),
+      onMouseLeave: clearHighlight,
+    };
+  };
 
   const foundItems = items.filter((i) => i.status === "found");
   const missingItems = items.filter((i) => i.status === "missing");
@@ -134,51 +153,63 @@ export function CompletenessPanel({
           <div className="mb-3">
             <p className="text-xs font-medium text-muted-foreground mb-2">Found Items</p>
             <div className="space-y-1">
-              {foundItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-2 bg-emerald-50/50 rounded-md group"
-                >
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(item.status)}
-                    <span className="text-sm">{item.label}</span>
-                    {item.required && (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0">
-                        Required
-                      </Badge>
+              {foundItems.map((item) => {
+                const hoverHandlers = createItemHoverHandlers(item);
+                const hasSourceRegion = item.sourceRegion && item.pageNumber;
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-center justify-between p-2 bg-emerald-50/50 rounded-md group",
+                      hasSourceRegion && "hover:bg-emerald-100/70 cursor-pointer transition-colors"
                     )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={cn("text-xs", getConfidenceColor(item.confidence))}>
-                      {item.confidence}%
-                    </span>
-                    {item.pageNumber && (
+                    {...hoverHandlers}
+                  >
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(item.status)}
+                      <span className="text-sm">{item.label}</span>
+                      {item.required && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">
+                          Required
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-xs", getConfidenceColor(item.confidence))}>
+                        {item.confidence}%
+                      </span>
+                      {item.pageNumber && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewPage?.(item.pageNumber!);
+                          }}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          pg {item.pageNumber}
+                        </Button>
+                      )}
+                      {/* Remove from found button */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-xs"
-                        onClick={() => onViewPage?.(item.pageNumber!)}
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUnmarkFound?.(item.id);
+                          toast.info(`"${item.label}" moved to missing items`);
+                        }}
+                        title="Move to missing items"
                       >
-                        <Eye className="h-3 w-3 mr-1" />
-                        pg {item.pageNumber}
+                        <X className="h-3.5 w-3.5" />
                       </Button>
-                    )}
-                    {/* Remove from found button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                      onClick={() => {
-                        onUnmarkFound?.(item.id);
-                        toast.info(`"${item.label}" moved to missing items`);
-                      }}
-                      title="Move to missing items"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -190,45 +221,59 @@ export function CompletenessPanel({
               Needs Verification ({uncertainItems.length})
             </p>
             <div className="space-y-2">
-              {uncertainItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-2 bg-amber-50/50 rounded-md border border-amber-200"
-                >
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(item.status)}
-                    <span className="text-sm">{item.label}</span>
-                    {item.required && (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-300">
-                        Required
-                      </Badge>
+              {uncertainItems.map((item) => {
+                const hoverHandlers = createItemHoverHandlers(item);
+                const hasSourceRegion = item.sourceRegion && item.pageNumber;
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-center justify-between p-2 bg-amber-50/50 rounded-md border border-amber-200",
+                      hasSourceRegion && "hover:bg-amber-100/70 cursor-pointer transition-colors"
                     )}
+                    {...hoverHandlers}
+                  >
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(item.status)}
+                      <span className="text-sm">{item.label}</span>
+                      {item.required && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-300">
+                          Required
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-amber-600 mr-2">
+                        {item.confidence}%
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs text-emerald-600 hover:text-emerald-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkFound?.(item.id);
+                        }}
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Mark Found
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs text-red-600 hover:text-red-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkMissing?.(item.id);
+                        }}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Mark Missing
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-amber-600 mr-2">
-                      {item.confidence}%
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 text-xs text-emerald-600 hover:text-emerald-700"
-                      onClick={() => onMarkFound?.(item.id)}
-                    >
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Mark Found
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 text-xs text-red-600 hover:text-red-700"
-                      onClick={() => onMarkMissing?.(item.id)}
-                    >
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Mark Missing
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

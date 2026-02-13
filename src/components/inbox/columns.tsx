@@ -9,8 +9,14 @@ import { PatientMatchBadge } from "./patient-match-badge";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Link2 } from "lucide-react";
 import Link from "next/link";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LockIndicator } from "./lock-indicator";
 
 export const columns: ColumnDef<Fax>[] = [
@@ -68,13 +74,32 @@ export const columns: ColumnDef<Fax>[] = [
     accessorKey: "patientName",
     header: "Patient",
     cell: ({ row }) => (
-      <PatientMatchBadge
-        status={row.original.patientMatchStatus}
-        patientName={row.original.patientName}
-        confidence={row.original.patientMatchConfidence}
-      />
+      <div className="flex items-center gap-1.5">
+        <PatientMatchBadge
+          status={row.original.patientMatchStatus}
+          patientName={row.original.patientName}
+          confidence={row.original.patientMatchConfidence}
+        />
+        {row.original.linkedReferralId && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 border border-amber-300">
+                  <Link2 className="h-3 w-3 text-amber-700" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                <p className="font-medium">Linked to existing referral</p>
+                {row.original.linkedReferralReason && (
+                  <p className="text-muted-foreground">{row.original.linkedReferralReason}</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
     ),
-    size: 150,
+    size: 170,
   },
   {
     accessorKey: "status",

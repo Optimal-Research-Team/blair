@@ -7,3 +7,6 @@ export * from "./worklist";
 export * from "./settings";
 export * from "./dashboard";
 export * from "./user";
+export * from "./highlight";
+export * from "./cerebrum";
+export * from "./patient-sync";

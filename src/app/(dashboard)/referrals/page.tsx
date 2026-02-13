@@ -1,143 +1,246 @@
 "use client";
 
-import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { useState, useMemo } from "react";
+import { ReferralsDataTable } from "@/components/referrals/referrals-data-table";
+import { referralColumns } from "@/components/referrals/referrals-columns";
 import { mockReferrals } from "@/data/mock-referrals";
-import { PriorityBadge } from "@/components/inbox/priority-badge";
-import { formatRelativeTime } from "@/lib/format";
+import { ReferralStatus } from "@/types/referral";
+import { useDebounce } from "@/hooks/use-debounce";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Search,
+  X,
   FileHeart,
-  CheckCircle2,
-  XCircle,
-  Clock,
   AlertTriangle,
-  Calendar,
-  ArrowRight,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ReferralStatus } from "@/types";
 
-const STATUS_CONFIG: Record<ReferralStatus, { label: string; icon: React.ElementType; color: string }> = {
-  triage: { label: "Triage", icon: Clock, color: "bg-gray-100 text-gray-700" },
-  incomplete: { label: "Incomplete", icon: AlertTriangle, color: "bg-amber-100 text-amber-700" },
-  "pending-response": { label: "Pending Response", icon: Clock, color: "bg-blue-100 text-blue-700" },
-  complete: { label: "Complete", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-700" },
-  routed: { label: "Routed", icon: ArrowRight, color: "bg-indigo-100 text-indigo-700" },
-  accepted: { label: "Accepted", icon: CheckCircle2, color: "bg-green-100 text-green-700" },
-  declined: { label: "Declined", icon: XCircle, color: "bg-red-100 text-red-700" },
-  booked: { label: "Booked", icon: Calendar, color: "bg-purple-100 text-purple-700" },
-};
+const STATUS_OPTIONS: { value: ReferralStatus | "all"; label: string }[] = [
+  { value: "all", label: "All Statuses" },
+  { value: "triage", label: "Triage" },
+  { value: "incomplete", label: "Incomplete" },
+  { value: "pending-review", label: "Pending Review" },
+  { value: "routed", label: "Routed to Cerebrum" },
+  { value: "declined", label: "Declined" },
+];
 
 export default function ReferralsPage() {
-  const stats = {
-    total: mockReferrals.length,
-    incomplete: mockReferrals.filter((r) => r.status === "incomplete").length,
-    complete: mockReferrals.filter((r) => r.status === "complete").length,
-    accepted: mockReferrals.filter((r) => r.status === "accepted").length,
-    booked: mockReferrals.filter((r) => r.status === "booked").length,
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ReferralStatus | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<"urgent" | "routine" | "all">("all");
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const incompleteCount = mockReferrals.filter(
+      (r) => r.status === "incomplete" || r.status === "triage"
+    ).length;
+    const urgentCount = mockReferrals.filter(
+      (r) => r.priority === "urgent" && r.status !== "routed" && r.status !== "declined"
+    ).length;
+    const pendingCount = mockReferrals.filter(
+      (r) => r.status === "pending-review"
+    ).length;
+
+    return { total: mockReferrals.length, incompleteCount, urgentCount, pendingCount };
+  }, []);
+
+  const filteredReferrals = useMemo(() => {
+    let result = [...mockReferrals];
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      result = result.filter((r) => r.status === statusFilter);
+    }
+
+    // Apply priority filter
+    if (priorityFilter !== "all") {
+      result = result.filter((r) => r.priority === priorityFilter);
+    }
+
+    // Apply search
+    if (debouncedSearch) {
+      const query = debouncedSearch.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.patientName?.toLowerCase().includes(query) ||
+          r.referringPhysicianName?.toLowerCase().includes(query) ||
+          r.clinicName?.toLowerCase().includes(query) ||
+          r.reasonForReferral?.toLowerCase().includes(query) ||
+          r.conditions?.some((c) => c.toLowerCase().includes(query))
+      );
+    }
+
+    // Sort: urgent first, then by status, then by received date
+    result.sort((a, b) => {
+      const priorityOrder = { urgent: 0, routine: 1 };
+      const statusOrder: Record<string, number> = {
+        triage: 0,
+        incomplete: 1,
+        "pending-review": 2,
+        routed: 3,
+        declined: 4,
+      };
+      if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      }
+      if (statusOrder[a.status] !== statusOrder[b.status]) {
+        return statusOrder[a.status] - statusOrder[b.status];
+      }
+      return new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime();
+    });
+
+    return result;
+  }, [debouncedSearch, statusFilter, priorityFilter]);
+
+  const handleReset = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+  };
+
+  const hasFilters = search || statusFilter !== "all" || priorityFilter !== "all";
+
+  // Quick filter handlers
+  const toggleUrgentFilter = () => {
+    if (priorityFilter === "urgent") {
+      setPriorityFilter("all");
+    } else {
+      setPriorityFilter("urgent");
+      setStatusFilter("all");
+    }
+  };
+
+  const toggleIncompleteFilter = () => {
+    if (statusFilter === "incomplete") {
+      setStatusFilter("all");
+    } else {
+      setStatusFilter("incomplete");
+      setPriorityFilter("all");
+    }
   };
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Referrals"
-        description="Manage incoming referral pipeline"
-        action={
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">Total:</span>
-              <span className="font-semibold">{stats.total}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-amber-600">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="font-semibold">{stats.incomplete} incomplete</span>
-            </div>
+    <div className="flex flex-col gap-4 p-6">
+      {/* Single Header Row */}
+      <div className="flex items-center gap-4">
+        {/* Left: Title + Count */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <FileHeart className="h-5 w-5 text-muted-foreground" />
+            <h1 className="text-xl font-semibold">Referrals</h1>
           </div>
-        }
-      />
+          <span className="text-sm text-muted-foreground">
+            {stats.total} referrals
+          </span>
+        </div>
 
-      <div className="space-y-3">
-        {mockReferrals.map((referral) => {
-          const statusConfig = STATUS_CONFIG[referral.status];
-          const StatusIcon = statusConfig.icon;
+        {/* Center: Search Bar */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search patient, physician, clinic, reason..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 pr-16 h-9"
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="text-muted-foreground hover:text-foreground p-0.5"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <kbd className="hidden sm:inline-flex h-5 items-center rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+              ⌘K
+            </kbd>
+          </div>
+        </div>
 
-          return (
-            <Card key={referral.id} className="hover:shadow-sm transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted shrink-0">
-                    <FileHeart className="h-5 w-5 text-muted-foreground" />
-                  </div>
+        {/* Right: Quick Filters */}
+        <div className="flex items-center gap-2">
+          {stats.urgentCount > 0 && (
+            <Button
+              variant={priorityFilter === "urgent" ? "default" : "outline"}
+              size="sm"
+              onClick={toggleUrgentFilter}
+              className={cn(
+                "h-8 text-xs",
+                priorityFilter === "urgent"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "border-red-200 text-red-700 hover:bg-red-50"
+              )}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              {stats.urgentCount} Urgent
+            </Button>
+          )}
+          {stats.incompleteCount > 0 && (
+            <Button
+              variant={statusFilter === "incomplete" ? "default" : "outline"}
+              size="sm"
+              onClick={toggleIncompleteFilter}
+              className="h-8 text-xs"
+            >
+              <Clock className="h-3 w-3 mr-1" />
+              {stats.incompleteCount} Incomplete
+            </Button>
+          )}
+        </div>
 
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-semibold">{referral.patientName}</h3>
-                      <PriorityBadge priority={referral.priority} />
-                      <Badge className={cn("text-[10px]", statusConfig.color)} variant="secondary">
-                        <StatusIcon className="h-3 w-3 mr-1" />
-                        {statusConfig.label}
-                      </Badge>
-                    </div>
+        {/* Divider */}
+        <div className="h-6 w-px bg-border" />
 
-                    <p className="text-xs text-muted-foreground">
-                      From {referral.referringPhysicianName} &middot;{" "}
-                      {formatRelativeTime(referral.receivedDate)}
-                    </p>
+        {/* Filters Dropdown */}
+        <div className="flex items-center gap-2">
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as ReferralStatus | "all")}
+          >
+            <SelectTrigger className="w-[150px] h-8 text-xs">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-                    <p className="text-sm text-muted-foreground line-clamp-1">
-                      {referral.reasonForReferral}
-                    </p>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 px-2 text-xs">
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
 
-                    <div className="flex items-center gap-3">
-                      <Progress value={referral.completenessScore} className="h-2 flex-1 max-w-[200px]" />
-                      <span
-                        className={cn(
-                          "text-xs font-medium tabular-nums",
-                          referral.completenessScore === 100
-                            ? "text-emerald-600"
-                            : referral.completenessScore >= 60
-                            ? "text-amber-600"
-                            : "text-red-600"
-                        )}
-                      >
-                        {referral.completenessScore}% complete
-                      </span>
-                    </div>
-
-                    <div className="flex gap-1.5 flex-wrap">
-                      {referral.completenessItems.map((item) => (
-                        <span
-                          key={item.id}
-                          className={cn(
-                            "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded",
-                            item.status === "found" ? "bg-emerald-50 text-emerald-700" :
-                            item.status === "uncertain" ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"
-                          )}
-                        >
-                          {item.status === "found" ? "✓" : item.status === "uncertain" ? "?" : "✗"} {item.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="shrink-0">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/referrals/${referral.id}`}>
-                        Review
-                        <ArrowRight className="h-4 w-4 ml-1" />
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {/* Refresh */}
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-auto">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
       </div>
+
+      {/* Table */}
+      <ReferralsDataTable
+        columns={referralColumns}
+        data={filteredReferrals}
+        globalFilter={debouncedSearch}
+      />
     </div>
   );
 }

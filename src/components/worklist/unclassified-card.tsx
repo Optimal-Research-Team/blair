@@ -11,8 +11,8 @@ import {
   FileText,
   ChevronRight,
   Lock,
-  Zap,
   AlertTriangle,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,33 +30,24 @@ export function UnclassifiedCard({
   lockedByName,
 }: UnclassifiedCardProps) {
 
-  const isSTAT = item.priority === "stat";
   const isUrgent = item.priority === "urgent";
-  const isPriority = isSTAT || isUrgent;
 
   return (
     <div
       className={cn(
         "flex items-center justify-between gap-4 pl-4 pr-4 py-3 transition-colors border-l-4",
         isLocked && "opacity-50",
-        // Priority hierarchy: STAT > Urgent > Routine
-        isSTAT && "border-l-red-500 bg-red-50/80 hover:bg-red-100/80",
-        isUrgent && !isSTAT && "border-l-orange-400 bg-orange-50/60 hover:bg-orange-100/60",
+        // Urgent items get red styling
+        isUrgent && "border-l-red-500 bg-red-50/80 hover:bg-red-100/80",
         // Non-priority unclassified: amber accent
-        !isPriority && "border-l-amber-400 hover:bg-muted/50"
+        !isUrgent && "border-l-amber-400 hover:bg-muted/50"
       )}
     >
       {/* Left: Main info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1.5">
-          {isSTAT && (
+          {isUrgent && (
             <Badge className="bg-red-600 text-white text-[10px] h-5 font-semibold">
-              <Zap className="h-3 w-3 mr-0.5" />
-              STAT
-            </Badge>
-          )}
-          {isUrgent && !isSTAT && (
-            <Badge className="bg-orange-500 text-white text-[10px] h-5 font-semibold">
               <AlertTriangle className="h-3 w-3 mr-0.5" />
               Urgent
             </Badge>
@@ -65,13 +56,19 @@ export function UnclassifiedCard({
             <FileQuestion className="h-3.5 w-3.5" />
             <span className="font-medium">Unclassified</span>
           </span>
+          {item.hasPatientInfoUpdate && (
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] h-5">
+              <UserCog className="h-3 w-3 mr-0.5" />
+              Info Update
+            </Badge>
+          )}
           <span className="text-muted-foreground">·</span>
           <SlaTimerCell deadline={item.slaDeadline} receivedAt={item.receivedAt} compact />
         </div>
 
         <p className={cn(
           "text-sm mb-1.5 line-clamp-1",
-          isPriority ? "font-medium text-foreground" : "text-foreground"
+          isUrgent ? "font-medium text-foreground" : "text-foreground"
         )}>
           {item.description}
         </p>
@@ -115,7 +112,7 @@ export function UnclassifiedCard({
             onClick={() => onOpen(item.faxId)}
             className={cn(
               "h-8",
-              isPriority && "bg-primary hover:bg-primary/90"
+              isUrgent && "bg-primary hover:bg-primary/90"
             )}
           >
             Review

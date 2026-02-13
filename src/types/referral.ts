@@ -1,15 +1,16 @@
 import { Priority } from "./fax";
 import { CompletenessItemStatus, Communication } from "./communication";
+import { BoundingBox, ExtractedField } from "./highlight";
 
 export type ReferralStatus =
-  | "triage"        // Needs labeling/categorization
-  | "incomplete"    // Missing required items
-  | "pending-response"  // Waiting on external info
-  | "complete"      // Ready for routing
-  | "routed"        // Sent to MD inbox
-  | "accepted"      // MD accepted
-  | "declined"      // MD declined
-  | "booked";       // Appointment scheduled
+  | "triage"           // Needs urgency triage (urgency unknown or unconfirmed)
+  | "incomplete"       // Missing required items
+  | "pending-review"   // Awaiting human review
+  | "routed"           // Routed to MD waitlist
+  | "declined";        // Declined
+
+// Urgency rating for referrals
+export type UrgencyRating = "unknown" | "urgent" | "not-urgent";
 
 // Timeline event for tracking all activity on a referral
 export type TimelineEventType =
@@ -52,6 +53,8 @@ export interface ReferralDocumentPage {
   pageNumber: number;
   thumbnailUrl?: string;   // Mock placeholder
   detectedContent?: string; // AI description of what's on the page
+  /** Extracted fields with bounding box coordinates for source highlighting */
+  extractedFields?: ExtractedField[];
 }
 
 export interface CompletenessItem {
@@ -64,6 +67,8 @@ export interface CompletenessItem {
   documentId?: string;       // Which document contains it
   requestedAt?: string;      // When we requested it
   receivedAt?: string;       // When we got it
+  /** Bounding box for the source region on the document */
+  sourceRegion?: BoundingBox;
 }
 
 export interface Referral {
@@ -86,6 +91,9 @@ export interface Referral {
   status: ReferralStatus;
   priority: Priority;
   isUrgent: boolean;
+  urgencyRating: UrgencyRating;
+  urgencyConfirmedBy?: "ai" | "human";
+  urgencyConfidence?: number; // AI confidence in urgency rating (0-100)
   reasonForReferral: string;
   clinicalHistory: string;
   conditions: string[];

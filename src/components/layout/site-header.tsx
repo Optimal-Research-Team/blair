@@ -23,10 +23,9 @@ const pathLabels: Record<string, string> = {
   communications: "Communications",
   dashboard: "Dashboard",
   settings: "Settings",
-  "document-types": "Document Types",
+  "document-types": "Auto-Filing Rules",
   sla: "SLA Rules",
   integrations: "Integrations",
-  "auto-file": "Auto-File",
   "fax-lines": "Fax Lines",
 };
 

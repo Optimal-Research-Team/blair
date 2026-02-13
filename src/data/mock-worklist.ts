@@ -5,7 +5,7 @@ const ago = (minutes: number) => new Date(now.getTime() - minutes * 60000).toISO
 const later = (minutes: number) => new Date(now.getTime() + minutes * 60000).toISOString();
 
 export const mockWorklistItems: WorklistItem[] = [
-  // STAT/URGENT REFERRALS - Linked to actual referrals
+  // URGENT REFERRALS - Linked to actual referrals
   {
     id: "wl-1",
     faxId: "fax-2",
@@ -13,7 +13,7 @@ export const mockWorklistItems: WorklistItem[] = [
     isUrgent: true,
     queuePosition: 1,
     priorityScore: 98,
-    priority: "stat",
+    priority: "urgent",
     slaDeadline: later(15),
     slaStatus: "red",
     claimable: true,
@@ -23,7 +23,7 @@ export const mockWorklistItems: WorklistItem[] = [
     documentType: "Referral",
     pageCount: 5,
     receivedAt: ago(60),
-    description: "STAT - Unstable angina, triple vessel disease, dynamic ECG changes",
+    description: "Urgent - Unstable angina, triple vessel disease, dynamic ECG changes",
     referralId: "ref-1",
     completenessScore: 100,
     pendingCommunications: 0,
@@ -81,7 +81,7 @@ export const mockWorklistItems: WorklistItem[] = [
     isUrgent: true,
     queuePosition: 4,
     priorityScore: 95,
-    priority: "stat",
+    priority: "urgent",
     slaDeadline: later(25),
     slaStatus: "red",
     claimable: true,
@@ -93,7 +93,7 @@ export const mockWorklistItems: WorklistItem[] = [
     suggestedDocTypeConfidence: 89,
     pageCount: 2,
     receivedAt: ago(35),
-    description: "STAT - Critical potassium level 6.8",
+    description: "Urgent - Critical potassium level 6.8",
   },
 
   // UNCLASSIFIED items (AI unsure of doc type)
@@ -116,6 +116,8 @@ export const mockWorklistItems: WorklistItem[] = [
     pageCount: 3,
     receivedAt: ago(45),
     description: "Unclear document type - possibly lab results or referral",
+    hasPatientInfoUpdate: true,
+    patientInfoUpdateType: "address",
   },
   {
     id: "wl-6",
@@ -225,6 +227,8 @@ export const mockWorklistItems: WorklistItem[] = [
     referralId: "ref-6",
     completenessScore: 80,
     pendingCommunications: 1,
+    hasPatientInfoUpdate: true,
+    patientInfoUpdateType: "phone",
   },
   {
     id: "wl-11",

@@ -29,7 +29,6 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  Zap,
 } from "lucide-react";
 
 export default function ReferralDetailPage({
@@ -138,17 +137,10 @@ export default function ReferralDetailPage({
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold">{referral.patientName}</h1>
               {referral.isUrgent && (
-                referral.priority === "stat" ? (
-                  <Badge className="bg-red-600 text-white">
-                    <Zap className="h-3 w-3 mr-1" />
-                    STAT
-                  </Badge>
-                ) : (
-                  <Badge className="bg-orange-500 text-white">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    URGENT
-                  </Badge>
-                )
+                <Badge className="bg-red-600 text-white">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  URGENT
+                </Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground">

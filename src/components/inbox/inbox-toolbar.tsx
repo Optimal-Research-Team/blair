@@ -89,7 +89,6 @@ export function InboxToolbar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Priorities</SelectItem>
-            <SelectItem value="stat">STAT</SelectItem>
             <SelectItem value="urgent">Urgent</SelectItem>
             <SelectItem value="routine">Routine</SelectItem>
           </SelectContent>

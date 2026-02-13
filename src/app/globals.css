@@ -139,3 +139,19 @@
 .confidence-bar {
   background: linear-gradient(90deg, #3b82f6, #2563eb);
 }
+
+/* Highlight overlay animation for linked scrolling */
+@keyframes pulse-highlight {
+  0%, 100% {
+    opacity: 0.8;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.6);
+  }
+}
+
+.animate-pulse-highlight {
+  animation: pulse-highlight 2s ease-in-out infinite;
+}

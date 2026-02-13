@@ -2,16 +2,23 @@
 
 import { use, useState, useEffect } from "react";
 import { mockFaxes } from "@/data/mock-faxes";
+import { mockPatients } from "@/data/mock-patients";
 import { currentUser } from "@/data/mock-staff";
 import { PageThumbnail } from "@/components/fax-viewer/page-thumbnail";
 import { FaxPageViewer } from "@/components/fax-viewer/fax-page-viewer";
 import { ReviewPanel } from "@/components/fax-viewer/review-panel";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Lock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Lock, AlertTriangle, Stethoscope } from "lucide-react";
 import Link from "next/link";
 import { SlaTimerCell } from "@/components/inbox/sla-timer-cell";
 import { PriorityBadge } from "@/components/inbox/priority-badge";
 import { useLockStore } from "@/stores/use-lock-store";
+import { formatDate, formatPHN } from "@/lib/format";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,6 +27,7 @@ interface Props {
 export default function FaxDetailPage({ params }: Props) {
   const { id } = use(params);
   const fax = mockFaxes.find((f) => f.id === id);
+  const patient = fax?.patientId ? mockPatients.find((p) => p.id === fax.patientId) : null;
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
   const { lockDocument, unlockDocument, isLockedByOther, getLockedByUser } = useLockStore();
@@ -73,14 +81,32 @@ export default function FaxDetailPage({ params }: Props) {
             </Link>
           </Button>
           <div className="h-5 w-px bg-border" />
-          <span className="text-sm font-medium">{fax.senderName}</span>
-          <PriorityBadge priority={fax.priority} />
-          {fax.status !== "completed" && fax.status !== "auto-filed" && (
-            <SlaTimerCell
-              deadline={fax.slaDeadline}
-              receivedAt={fax.receivedAt}
-            />
-          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{fax.patientName || "Unknown Patient"}</span>
+              <PriorityBadge priority={fax.priority} />
+              {fax.status !== "completed" && fax.status !== "auto-filed" && (
+                <SlaTimerCell
+                  deadline={fax.slaDeadline}
+                  receivedAt={fax.receivedAt}
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>
+                DOB: {patient ? formatDate(patient.dateOfBirth) : <span className="italic text-muted-foreground/70">Not found</span>}
+              </span>
+              <span>·</span>
+              <span>
+                OHIP: {patient ? formatPHN(patient.phn) : <span className="italic text-muted-foreground/70">Not found</span>}
+              </span>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <Stethoscope className="h-3 w-3" />
+                {fax.senderName || <span className="italic text-muted-foreground/70">Not found</span>}
+              </span>
+            </div>
+          </div>
         </div>
         {/* Show lock status */}
         {!lockedByOther && (
@@ -105,20 +131,30 @@ export default function FaxDetailPage({ params }: Props) {
           ))}
         </div>
 
-        {/* Center: Document viewer */}
-        <div className="flex-1 min-w-0">
-          <FaxPageViewer
-            fax={fax}
-            currentPage={fax.pages[currentPageIndex]}
-            onPageChange={setCurrentPageIndex}
-            currentPageIndex={currentPageIndex}
-          />
-        </div>
+        {/* Resizable document viewer and review panel */}
+        <ResizablePanelGroup orientation="horizontal" className="flex-1">
+          {/* Center: Document viewer */}
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <FaxPageViewer
+              fax={fax}
+              currentPage={fax.pages[currentPageIndex]}
+              onPageChange={setCurrentPageIndex}
+              currentPageIndex={currentPageIndex}
+            />
+          </ResizablePanel>
 
-        {/* Right: Review panel */}
-        <div className="w-80 border-l shrink-0">
-          <ReviewPanel fax={fax} />
-        </div>
+          <ResizableHandle withHandle />
+
+          {/* Right: Review panel */}
+          <ResizablePanel defaultSize={50} minSize={25}>
+            <div className="border-l h-full">
+              <ReviewPanel
+                fax={fax}
+                extractedFields={fax.pages[currentPageIndex]?.extractedFields}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </div>
   );

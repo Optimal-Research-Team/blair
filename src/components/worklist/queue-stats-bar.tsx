@@ -24,7 +24,7 @@ export function QueueStatsBar({ faxes }: QueueStatsBarProps) {
   );
 
   const urgentCount = actionable.filter(
-    (f) => f.priority === "stat" || f.priority === "urgent"
+    (f) => f.priority === "urgent"
   ).length;
 
   const now = new Date();
@@ -59,7 +59,7 @@ export function QueueStatsBar({ faxes }: QueueStatsBarProps) {
       bgColor: "bg-blue-50",
     },
     {
-      label: "Urgent / STAT",
+      label: "Urgent",
       value: urgentCount,
       icon: AlertTriangle,
       color: urgentCount > 0 ? "text-red-600" : "text-muted-foreground",

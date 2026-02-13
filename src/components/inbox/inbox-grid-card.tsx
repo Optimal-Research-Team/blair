@@ -2,7 +2,7 @@
 
 import { Fax } from "@/types";
 import { formatRelativeTime } from "@/lib/format";
-import { Lock, FileText, User, Zap, AlertTriangle, Eye, CheckCircle2, Flag, Clock } from "lucide-react";
+import { Lock, FileText, User, AlertTriangle, Eye, CheckCircle2, Flag, Clock, Link2 } from "lucide-react";
 import { mockStaff } from "@/data/mock-staff";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -34,17 +34,13 @@ export function InboxGridCard({ fax }: InboxGridCardProps) {
           isResolved && "bg-gray-50/80 border-gray-200",
           needsAction && "bg-white border-gray-200 shadow-sm hover:shadow-md",
           fax.status === "in-progress" && "bg-white border-purple-200 shadow-sm",
-          // Priority overrides
-          fax.priority === "stat" && !isResolved && "bg-red-50 border-red-200 shadow-sm hover:shadow-md",
-          fax.priority === "urgent" && !isResolved && "bg-orange-50 border-orange-200 shadow-sm hover:shadow-md",
+          // Priority overrides - Urgent items get red styling
+          fax.priority === "urgent" && !isResolved && "bg-red-50 border-red-200 shadow-sm hover:shadow-md",
         )}
       >
-        {/* Top accent bar for priority items */}
-        {fax.priority !== "routine" && !isResolved && (
-          <div className={cn(
-            "absolute inset-x-0 top-0 h-0.5 rounded-t-lg",
-            fax.priority === "stat" ? "bg-red-500" : "bg-orange-400"
-          )} />
+        {/* Top accent bar for urgent items */}
+        {fax.priority === "urgent" && !isResolved && (
+          <div className="absolute inset-x-0 top-0 h-0.5 rounded-t-lg bg-red-500" />
         )}
 
         {/* Card content */}
@@ -52,14 +48,8 @@ export function InboxGridCard({ fax }: InboxGridCardProps) {
           {/* Header: Priority/Status indicator + Time */}
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5 text-[11px] font-medium">
-              {fax.priority === "stat" && (
-                <span className="inline-flex items-center gap-0.5 text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
-                  <Zap className="h-3 w-3" />
-                  STAT
-                </span>
-              )}
               {fax.priority === "urgent" && (
-                <span className="inline-flex items-center gap-0.5 text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded">
+                <span className="inline-flex items-center gap-0.5 text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
                   <AlertTriangle className="h-3 w-3" />
                   Urgent
                 </span>
@@ -86,6 +76,12 @@ export function InboxGridCard({ fax }: InboxGridCardProps) {
                 <span className="inline-flex items-center gap-0.5 text-amber-700">
                   <Lock className="h-3 w-3" />
                   {lockedUser?.initials}
+                </span>
+              )}
+              {fax.linkedReferralId && (
+                <span className="inline-flex items-center gap-0.5 text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded" title={fax.linkedReferralReason || "Linked to existing referral"}>
+                  <Link2 className="h-3 w-3" />
+                  Linked
                 </span>
               )}
             </div>
