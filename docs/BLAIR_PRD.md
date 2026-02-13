@@ -19,6 +19,7 @@
 8. [RFP Requirements Fulfillment](#8-rfp-requirements-fulfillment)
 9. [Success Metrics & KPIs](#9-success-metrics--kpis)
 10. [Technical Implementation Notes](#10-technical-implementation-notes)
+11. [Edge Cases & Error Handling](#11-edge-cases--error-handling)
 
 ---
 
@@ -1424,6 +1425,154 @@ interface CompletenessItem {
 - Debouncing: 300ms on search inputs
 - Memoization: React.useMemo for filtered lists
 - Lazy loading: Documents load on navigation
+
+---
+
+## 11. Edge Cases & Error Handling
+
+Blair is designed to handle a variety of edge cases that commonly occur in healthcare fax processing. The following scenarios document how the system responds to exceptional situations.
+
+### 11.1 Patient Not Found in EMR
+
+**Scenario**: AI extracts patient demographics but cannot find matching EMR record.
+
+**Handling**:
+- Yellow warning banner: "No EMR match found"
+- Displays extracted info (name, DOB, OHIP) for verification
+- Three options presented:
+  1. **Search EMR**: Opens advanced search modal with extracted values pre-filled
+  2. **Create New Patient**: Opens new patient form in Cerebrum (if integration allows)
+  3. **File Without Match**: Creates orphan record that can be matched later
+
+**Visual Indicators**:
+- Patient card shows "Unmatched" badge
+- Search results show confidence scores for near-matches
+- Previous patient history appears empty
+
+---
+
+### 11.2 Document Splitting Required
+
+**Scenario**: Single fax contains multiple patient documents.
+
+**Handling**:
+- AI detection: System flags when page content suggests multiple patients
+- Manual trigger: Staff can initiate split from fax detail view
+- Split interface (see Section 4.3)
+- After split: Each resulting document processed independently
+
+**Edge Cases Within Splitting**:
+- Single-page fax: Split option disabled
+- All pages same patient: Warning shown, allow override
+- Ambiguous pages: Can be assigned to multiple groups
+
+---
+
+### 11.3 OHIP Number Not Found
+
+**Scenario**: Referral document doesn't contain OHIP health card number.
+
+**Handling**:
+- Completeness check shows red X for "OHIP Number"
+- Status set to "Incomplete"
+- Auto-generated task: "Request OHIP from referring clinic"
+- Communication template pre-populated with request
+- Referral blocked from "Routed" status until resolved
+
+**Resolution Paths**:
+- Staff manually enters OHIP after phone call
+- Fax reply received → staff attaches and extracts
+- Mark as "Exempt" with reason (e.g., newborn, refugee)
+
+---
+
+### 11.4 Date of Birth Not Found
+
+**Scenario**: DOB missing from referral document.
+
+**Handling**:
+- Similar to OHIP: blocks completion
+- If OHIP present: May attempt EMR lookup to fill DOB
+- Task generated for follow-up
+- Age-sensitive routing rules cannot apply until resolved
+
+---
+
+### 11.5 Referring Physician Not in Directory
+
+**Scenario**: Referring physician name/fax extracted but not in provider directory.
+
+**Handling**:
+- Yellow warning: "Unknown referring physician"
+- Shows extracted values (name, fax, phone)
+- Options:
+  1. **Search Directory**: Find existing match with different spelling
+  2. **Add New Provider**: Create directory entry
+  3. **Proceed Without**: Link to fax number only
+
+---
+
+### 11.6 Duplicate Referral Detection
+
+**Scenario**: Same patient appears to have been referred multiple times.
+
+**Handling**:
+- AI flags potential duplicates based on:
+  - Same patient + similar timeframe
+  - Same referring physician
+  - Similar reason for referral
+- Warning shown with link to existing referral
+- Options: Merge, Mark as Duplicate, Proceed as New
+
+---
+
+### 11.7 SLA Breach Approaching
+
+**Scenario**: Urgent referral nearing 24-hour deadline.
+
+**Handling**:
+- 4 hours before: Yellow warning in worklist
+- 1 hour before: Slack notification to #urgent-faxes
+- At breach: Red status, Zendesk ticket escalated, manager notified
+- Post-breach: Tracking continues for reporting
+
+---
+
+### 11.8 EMR Connection Failure
+
+**Scenario**: Cerebrum API unavailable.
+
+**Handling**:
+- Banner notification: "EMR connection lost"
+- Auto-file operations queued (not lost)
+- Patient searches fall back to cached data
+- Retry mechanism with exponential backoff
+- Manual retry button available
+- Dashboard shows connection status
+
+---
+
+### 11.9 Fax Quality Issues
+
+**Scenario**: Poor quality fax scan affects AI extraction.
+
+**Handling**:
+- Low confidence scores on all fields
+- "Low Quality" badge on fax
+- Manual review required for all extractions
+- Option to request re-fax from sender
+
+---
+
+### 11.10 Multi-Language Documents
+
+**Scenario**: Document contains non-English text.
+
+**Handling**:
+- Language detection in AI pipeline
+- Flagged for specialized review if non-English
+- Translation notes field available
+- Does not attempt extraction from non-English portions
 
 ---
 
