@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  RefreshCw,
   Settings,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -68,14 +67,9 @@ export default function IntegrationsPage() {
                 )}
                 <div className="flex gap-2">
                   {integration.status === "connected" && (
-                    <>
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => toast.info("Syncing...")}>
-                        <RefreshCw className="h-3 w-3 mr-1" />Sync
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs">
-                        <Settings className="h-3 w-3 mr-1" />Configure
-                      </Button>
-                    </>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                      <Settings className="h-3 w-3 mr-1" />Configure
+                    </Button>
                   )}
                   {integration.status === "pending" && (
                     <Button size="sm" className="h-7 text-xs" onClick={() => toast.info("Setup wizard...")}>Complete Setup</Button>

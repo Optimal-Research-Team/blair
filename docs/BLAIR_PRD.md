@@ -1049,13 +1049,17 @@ Zendesk tickets ensure that urgent items and exceptions don't get lost. By surfa
 - Auto-creation rules are transparent, so staff understand why tickets appear
 - The sidebar badge count reflects open tickets, creating urgency
 
+**Automatic Ticket Lifecycle:**
+
+Zendesk tickets are automatically closed when the underlying issue is resolved within Blair. For example, when a staff member triages an urgent fax or routes a referral that triggered a ticket, Blair automatically updates the ticket status to "Resolved" with a note indicating the action taken. This eliminates manual ticket management and ensures ticket counts accurately reflect outstanding work.
+
 ---
 
 ### 6.5 Slack Integration (`/integrations/slack`)
 
 **Purpose:** Log of all Slack notifications sent by Blair, providing visibility into team alerts and ensuring notifications are delivered.
 
-The Slack integration keeps the care team informed about urgent events in real-time. When an urgent referral is confirmed, Blair posts to #urgent-faxes. When SLAs are approaching breach, team leads receive warnings. This page logs all notifications so staff can verify what was sent and troubleshoot delivery issues.
+The Slack integration keeps the care team informed about urgent events in real-time. All Slack notifications are sent automatically based on system events—no manual action is required. When an urgent referral is confirmed, Blair automatically posts to #urgent-faxes. When SLAs are approaching breach, team leads automatically receive warnings. Daily digests and weekly reports are sent on schedule without intervention. This page logs all notifications so staff can verify what was sent and troubleshoot delivery issues.
 
 **Layout:**
 ```
@@ -1187,66 +1191,11 @@ This page surfaces unmatched physicians so administrators can proactively add th
 
 ---
 
-### 6.7 SRFax Integration (`/integrations/srfax`)
+### 6.7 SRFax Integration
 
-**Purpose:** Monitor incoming fax reception and troubleshoot delivery issues.
+**Purpose:** Inbound and outbound fax processing via SRFax cloud service.
 
-SRFax is the entry point for all documents into Blair. When faxes fail to arrive or arrive corrupted, the entire workflow stalls. This page provides visibility into the fax reception pipeline, allowing staff to verify that faxes are being received and identify transmission issues.
-
-**Layout:**
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│ SRFax Integration                                                 🟢 Connected     │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│ RECEPTION STATS                                                                     │
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │
-│ │   Today     │ │  This Week  │ │   Failed    │ │   Avg Size  │                    │
-│ │    47       │ │     312     │ │      2      │ │  4.2 pages  │                    │
-│ │   faxes     │ │    faxes    │ │ receptions  │ │   per fax   │                    │
-│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘                    │
-│                                                                                      │
-│ FAX LINES                                                                           │
-│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
-│ │ Line Number      │ Name              │ Today │ Status    │ Last Received        │ │
-│ ├──────────────────┼───────────────────┼───────┼───────────┼──────────────────────┤ │
-│ │ (416) 555-9876   │ Main Fax          │ 32    │ 🟢 Active │ 5 min ago            │ │
-│ │ (416) 555-9877   │ Referrals Only    │ 12    │ 🟢 Active │ 15 min ago           │ │
-│ │ (416) 555-9878   │ Lab Results       │ 3     │ 🟢 Active │ 1 hour ago           │ │
-│ └─────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                      │
-│ RECENT ACTIVITY                                                                     │
-│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
-│ │ Time        │ From              │ Line          │ Pages │ Status                │ │
-│ ├─────────────┼───────────────────┼───────────────┼───────┼───────────────────────┤ │
-│ │ 10:32 AM    │ (416) 555-0123    │ Main Fax      │ 5     │ ✓ Received            │ │
-│ │ 10:28 AM    │ (905) 555-9876    │ Referrals     │ 3     │ ✓ Received            │ │
-│ │ 10:15 AM    │ (647) 555-4321    │ Main Fax      │ 8     │ ✓ Received            │ │
-│ │ 09:58 AM    │ Unknown           │ Lab Results   │ 1     │ ⚠ Low Quality         │ │
-│ │ 09:45 AM    │ (416) 555-0000    │ Main Fax      │ --    │ ✗ Failed              │ │
-│ └─────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                      │
-│ FAILED RECEPTIONS                                                                   │
-│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
-│ │ ⚠ 2 failed receptions today                                                      │ │
-│ │                                                                                  │ │
-│ │ • 09:45 AM from (416) 555-0000 - Error: Connection dropped during transmission │ │
-│ │   [Request Resend] [Mark Resolved]                                              │ │
-│ │ • 08:12 AM from Unknown - Error: Invalid fax format                             │ │
-│ │   [Mark Resolved]                                                                │ │
-│ └─────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                      │
-│                              [ Test Reception ]    [ View Full Logs ]               │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-**Why This Page Exists:**
-
-Fax reception issues can be invisible—if a fax never arrives, staff may not know to expect it. This page provides:
-- Confirmation that faxes are being received from expected senders
-- Visibility into failed transmissions so staff can request resends
-- Per-line activity to identify if a specific fax number has issues
-- Quality indicators to flag poorly-scanned documents before AI processing fails
+SRFax serves as the entry point for all documents into Blair and handles outbound fax communications. The integration works via webhook—when a fax is received by SRFax, it sends a webhook notification to Blair containing the fax metadata and document images. Blair then processes the document through the AI classification pipeline. For outbound communications (e.g., requesting missing items from referring physicians), Blair sends fax requests to the SRFax API, which handles delivery and provides confirmation receipts. The integration is configured in Settings → Integrations, where administrators can manage fax line assignments, set up routing rules, and view connection status. Unlike other integrations, SRFax does not have a dedicated feed page in Blair since fax activity is visible directly in the Fax Inbox.
 
 ---
 
