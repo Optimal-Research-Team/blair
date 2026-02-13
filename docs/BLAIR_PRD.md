@@ -1426,6 +1426,78 @@ interface CompletenessItem {
 - Memoization: React.useMemo for filtered lists
 - Lazy loading: Documents load on navigation
 
+### 10.4 Hybrid AI Processing Architecture
+
+Blair employs a **hybrid OCR + LLM approach** that balances accuracy with cost-efficiency. Rather than sending every document through expensive large language models, Blair uses a tiered processing pipeline that routes documents through the most cost-effective path while maintaining high accuracy.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     HYBRID AI PROCESSING PIPELINE                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              ┌──────────────────┐
+                              │   FAX RECEIVED   │
+                              └────────┬─────────┘
+                                       │
+                                       ▼
+                    ┌──────────────────────────────────┐
+                    │      TIER 1: FAST OCR ENGINE     │
+                    │   (Low cost, high throughput)    │
+                    │                                  │
+                    │  • Text extraction               │
+                    │  • Layout analysis               │
+                    │  • Basic document fingerprinting │
+                    └────────────────┬─────────────────┘
+                                     │
+                     ┌───────────────┴───────────────┐
+                     │                               │
+                     ▼                               ▼
+          ┌─────────────────────┐       ┌─────────────────────┐
+          │  KNOWN DOCUMENT     │       │  UNKNOWN/COMPLEX    │
+          │  PATTERN MATCH      │       │  DOCUMENT           │
+          │  (Template-based)   │       │  (Requires LLM)     │
+          └──────────┬──────────┘       └──────────┬──────────┘
+                     │                             │
+                     ▼                             ▼
+          ┌─────────────────────┐       ┌─────────────────────┐
+          │  TIER 2: RULE-BASED │       │  TIER 3: LLM        │
+          │  EXTRACTION         │       │  PROCESSING         │
+          │  (Zero LLM cost)    │       │  (Higher cost)      │
+          │                     │       │                     │
+          │  • Structured forms │       │  • Handwritten text │
+          │  • Standard labs    │       │  • Unstructured     │
+          │  • Known templates  │       │    clinical notes   │
+          └──────────┬──────────┘       │  • Complex referrals│
+                     │                  └──────────┬──────────┘
+                     │                             │
+                     └──────────────┬──────────────┘
+                                    │
+                                    ▼
+                    ┌──────────────────────────────────┐
+                    │     CONFIDENCE SCORING &         │
+                    │     ROUTING DECISION             │
+                    │                                  │
+                    │  High confidence → Auto-file     │
+                    │  Low confidence → Human review   │
+                    └──────────────────────────────────┘
+```
+
+**Cost Optimization Strategies:**
+
+| Strategy | Description | Savings |
+|----------|-------------|---------|
+| **Template Matching** | Known document formats (standard lab reports, common referral forms) are processed with rule-based extraction, bypassing LLM entirely | 60-70% of documents |
+| **Selective LLM Routing** | Only complex, handwritten, or unstructured documents are sent to LLM processing | Reduces LLM calls by 70% |
+| **Caching & Deduplication** | Repeated faxes (resends, duplicates) are detected and matched to existing records | 5-10% reduction |
+| **Tiered Model Selection** | Simple classification tasks use smaller, cheaper models; complex extraction uses larger models | 40% cost reduction on LLM spend |
+
+**Accuracy Safeguards:**
+
+- **Confidence thresholds** ensure low-confidence extractions are flagged for human review
+- **Shadow Mode** allows parallel human verification during pilot phase
+- **Feedback loop** captures staff corrections to improve model accuracy over time
+- **Per-document-type thresholds** allow conservative handling of critical documents (e.g., referrals) while automating routine documents (e.g., appointment confirmations)
+
 ---
 
 ## 11. Edge Cases & Error Handling
