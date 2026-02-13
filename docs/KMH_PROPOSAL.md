@@ -16,6 +16,8 @@ Blair AI specializes in intelligent healthcare automation solutions designed for
 
 KMH Cardiology Clinics processes thousands of incoming faxes monthly—referrals, ECGs, lab results, and clinical correspondence. Manual triage consumes staff time, introduces delays, and risks lost documents. Your RFP outlines clear requirements for reliable classification, efficient workflows, and seamless integration with your existing systems.
 
+Of all document types, **referrals represent the most complex workflow challenge**. Unlike simple document filing, referrals require completeness tracking (ensuring all required clinical documents are present), multi-channel follow-up communications to obtain missing information, SLA enforcement to prevent urgent cases from slipping through, and seamless handoff to cardiologists for review. A robust referral management system is the backbone of efficient clinic operations—and it's where Blair delivers the most value.
+
 ### Our Solution: Blair
 
 Blair is an AI-powered fax sorting and referral management system purpose-built for cardiology clinics. Blair reduces manual triage time by **90%** while ensuring **100% referral completeness** before physician review. With intelligent document classification, real-time SLA tracking, and automated follow-up communications, Blair transforms your fax inbox from a bottleneck into a streamlined workflow.
@@ -66,9 +68,11 @@ The Worklist presents a unified queue where staff claim items for processing. Vi
 
 ### 2.6 AI/OCR Accuracy with Hybrid Approach
 
-Blair's hybrid AI approach balances accuracy and cost-efficiency. Confidence scores are displayed for all AI detections, and low-confidence items are automatically flagged for manual review. Shadow Mode enables pilot testing—AI processes and classifies documents, but all items require human confirmation during the validation period. Performance metrics (accuracy, override rate, time saved) are tracked for continuous improvement.
+Blair employs a **tiered AI processing pipeline** that keeps costs reasonable without sacrificing accuracy. Rather than routing every document through expensive large language models, Blair uses a three-tier approach: fast OCR for initial text extraction, rule-based processing for known document templates (standard lab reports, common referral forms), and LLM processing reserved for complex or handwritten documents. This selective routing reduces LLM costs by up to 70% while maintaining high accuracy.
 
-📄 [See PRD Section 3.1: Core UX Logic](https://github.com/Optimal-Research-Team/blair/blob/main/docs/BLAIR_PRD.md#31-core-ux-logic)
+Confidence scores are displayed for all AI detections, and low-confidence items are automatically flagged for manual review. Shadow Mode enables pilot testing—AI processes and classifies documents, but all items require human confirmation during the validation period. A feedback loop captures staff corrections to continuously improve model accuracy over time.
+
+📄 [See PRD Section 10.4: Hybrid AI Processing Architecture](https://github.com/Optimal-Research-Team/blair/blob/main/docs/BLAIR_PRD.md#104-hybrid-ai-processing-architecture)
 
 ---
 
