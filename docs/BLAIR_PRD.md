@@ -1,8 +1,8 @@
 # Blair AI Fax Sorter
 ## Product Requirements Document (PRD)
 
-**Version:** 1.0
-**Last Updated:** February 6, 2026
+**Version:** 1.1
+**Last Updated:** February 13, 2026
 **Status:** Prototype Complete
 
 ---
@@ -14,12 +14,11 @@
 3. [UX Philosophy & Design Principles](#3-ux-philosophy--design-principles)
 4. [User Flow Diagrams](#4-user-flow-diagrams)
 5. [Screen-by-Screen Specification](#5-screen-by-screen-specification)
-6. [Data Model & Relationships](#6-data-model--relationships)
-7. [RFP Requirements Fulfillment](#7-rfp-requirements-fulfillment)
-8. [Integration Architecture](#8-integration-architecture)
+6. [Integration Architecture](#6-integration-architecture)
+7. [Data Model & Relationships](#7-data-model--relationships)
+8. [RFP Requirements Fulfillment](#8-rfp-requirements-fulfillment)
 9. [Success Metrics & KPIs](#9-success-metrics--kpis)
 10. [Technical Implementation Notes](#10-technical-implementation-notes)
-11. [Future Roadmap](#11-future-roadmap)
 
 ---
 
@@ -27,11 +26,11 @@
 
 ### 1.1 What is Blair?
 
-Blair is an AI-powered intelligent fax sorting and referral management system designed specifically for Canadian cardiology clinics. The application automates the processing of incoming medical faxes, intelligently classifies documents, tracks referral completeness, and manages multi-channel outbound communications to obtain missing information.
+Blair is an AI-powered intelligent fax sorting and referral management system designed specifically for Canadian specialty clinics. The application automates the processing of incoming medical faxes, intelligently classifies documents, tracks referral completeness, and manages multi-channel outbound communications to obtain missing information.
 
 ### 1.2 Core Value Proposition
 
-- **Reduce manual triage time by 70%+** through AI-powered document classification
+- **Reduce manual triage time by 90%** through AI-powered document classification
 - **Ensure 100% referral completeness** before physician review via automated tracking
 - **Eliminate SLA breaches** with real-time priority queuing and visual timers
 - **Prevent lost faxes** through complete audit trails and record locking
@@ -41,9 +40,7 @@ Blair is an AI-powered intelligent fax sorting and referral management system de
 
 | Role | Primary Tasks |
 |------|---------------|
-| **Clinic Clerks** | Triage faxes, classify documents, split multi-patient faxes |
-| **Nurses/Clinical Staff** | Review referrals, track completeness, request missing items |
-| **Physicians** | Accept/decline referrals, make clinical decisions |
+| **Clinic Clerks** | Triage faxes, classify documents, split multi-patient faxes, review referrals, track completeness, request missing items |
 | **Administrators** | Configure system settings, manage integrations, view analytics |
 
 ---
@@ -88,7 +85,7 @@ The Blair UX is built around a **triage-first, exception-based workflow**:
 │                                                                  │
 │  3. NOTHING FALLS THROUGH THE CRACKS                           │
 │     → Every item has an SLA timer                               │
-│     → Visual priority indicators (STAT/Urgent/Routine)          │
+│     → Visual priority indicators (Urgent/Routine)               │
 │     → Record locking prevents concurrent edits                  │
 │     → Timeline tracks every action                              │
 │                                                                  │
@@ -105,7 +102,7 @@ The Blair UX is built around a **triage-first, exception-based workflow**:
 
 Every screen follows this visual priority:
 
-1. **Priority badges** (STAT = red, Urgent = orange, Routine = gray)
+1. **Priority badges** (Urgent = red, Routine = gray)
 2. **SLA timers** (countdown with color progression)
 3. **Status indicators** (what state is this item in?)
 4. **Completeness scores** (what % of required info do we have?)
@@ -115,8 +112,8 @@ Every screen follows this visual priority:
 
 | Color | Meaning | Usage |
 |-------|---------|-------|
-| Red | Critical/STAT/Missing | STAT badges, SLA breached, missing items |
-| Orange/Amber | Urgent/Warning | Urgent priority, SLA warning, uncertain items |
+| Red | Critical/Urgent/Missing | Urgent badges, SLA breached, missing items |
+| Orange/Amber | Warning | SLA warning, uncertain items |
 | Green/Emerald | Success/Found | Completed items, found documents, high confidence |
 | Blue | Information/Primary | Primary actions, links, informational badges |
 | Purple | AI/Automated | AI-initiated actions, AI agent calls |
@@ -143,6 +140,7 @@ Every screen follows this visual priority:
                         │  │ • Patient info extract │  │
                         │  │ • Priority assignment  │  │
                         │  │ • Patient matching     │  │
+                        │  │ • Provider matching    │  │
                         │  │ • Confidence scoring   │  │
                         │  └────────────────────────┘  │
                         └──────────────┬───────────────┘
@@ -172,8 +170,8 @@ Every screen follows this visual priority:
                   │                       │                      │
                   │                       ▼                      ▼
                   │              ┌──────────────────┐   ┌──────────────────┐
-                  │              │   FAX VIEWER     │   │ REFERRAL DETAIL  │
-                  │              │ Clerk classifies │   │ Staff reviews    │
+                  │              │   FAX VIEWER     │   │ REFERRAL VIEWER  │
+                  │              │ Clerk classifies │   │ Clerk reviews    │
                   │              └────────┬─────────┘   └────────┬─────────┘
                   │                       │                      │
                   │                       │      ┌───────────────┘
@@ -181,8 +179,8 @@ Every screen follows this visual priority:
                   ▼                       ▼      ▼
         ┌─────────────────────────────────────────────────┐
         │                   COMPLETED                      │
-        │   (Document classified, filed, or referral      │
-        │    progressed through workflow)                 │
+        │   Document classified and routed to appropriate │
+        │   folders + Provider Inbox in Cerebrum EMR      │
         └─────────────────────────────────────────────────┘
 ```
 
@@ -193,39 +191,39 @@ Every screen follows this visual priority:
 │                        REFERRAL STATUS PROGRESSION                           │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  ┌────────┐    ┌────────────┐    ┌─────────┐    ┌──────────┐    ┌────────┐
-  │ TRIAGE │───▶│ INCOMPLETE │───▶│ PENDING │───▶│ COMPLETE │───▶│ ROUTED │
-  └────────┘    └────────────┘    └─────────┘    └──────────┘    └────────┘
-       │              │                │               │              │
-       │              │                │               │              │
-       │              ▼                │               │              ▼
-       │    ┌──────────────────┐       │               │     ┌──────────────┐
-       │    │ Request Missing  │       │               │     │ Assigned to  │
-       │    │ Items via:       │       │               │     │ Cardiologist │
-       │    │ • Fax            │       │               │     └──────────────┘
-       │    │ • Email          │       │               │              │
-       │    │ • AI Voice Call  │       │               │              │
-       │    └────────┬─────────┘       │               │              ▼
-       │             │                 │               │     ┌──────────────┐
-       │             ▼                 │               │     │   ACCEPTED   │
-       │    ┌──────────────────┐       │               │     └──────┬───────┘
-       │    │ Response Rcvd?   │───Yes─┘               │            │
-       │    └────────┬─────────┘                       │            ▼
-       │             │ No (after X days)               │     ┌──────────────┐
-       │             ▼                                 │     │   BOOKED     │
-       │    ┌──────────────────┐                       │     │ (Appointment │
-       │    │ ESCALATE         │                       │     │  Scheduled)  │
-       │    │ • Call office    │                       │     └──────────────┘
-       │    │ • Resend fax     │                       │
-       │    │ • Try alt contact│                       │
-       │    └──────────────────┘                       │
-       │                                               │
-       │                            ┌──────────────────┘
-       │                            ▼
-       │                   ┌──────────────────┐
-       └──────────────────▶│    DECLINED      │
-          (If criteria     │ (Reason captured)│
-           not met)        └──────────────────┘
+  ┌────────┐    ┌────────────┐    ┌─────────────────┐    ┌────────────────────┐
+  │ TRIAGE │───▶│ INCOMPLETE │───▶│ PENDING REVIEW  │───▶│ ROUTED TO          │
+  └────────┘    └────────────┘    └─────────────────┘    │ CEREBRUM EMR       │
+       │              │                   │               └────────────────────┘
+       │              │                   │                         │
+       │              ▼                   │                         │
+       │    ┌──────────────────┐          │                         ▼
+       │    │ Request Missing  │          │                ┌──────────────────┐
+       │    │ Items via:       │          │                │  Cardiologist    │
+       │    │ • Fax            │          │                │  Inbox           │
+       │    │ • Email          │          │                └──────────────────┘
+       │    │ • AI Voice Call  │          │                   │           │
+       │    └────────┬─────────┘          │                   │           │
+       │             │                    │                   ▼           ▼
+       │             ▼                    │          ┌──────────┐  ┌──────────┐
+       │    ┌──────────────────┐          │          │ ACCEPTED │  │ DECLINED │
+       │    │ Response Rcvd?   │───Yes────┘          └────┬─────┘  │(Reason   │
+       │    └────────┬─────────┘                          │        │ captured)│
+       │             │ No (after X days)                  │        └──────────┘
+       │             ▼                                    │
+       │    ┌──────────────────┐                          ▼
+       │    │ ESCALATE         │               ┌────────────────────────┐
+       │    │ • Call office    │               │        BOOKED          │
+       │    │ • Resend fax     │               │ (Appointment Scheduled │
+       │    │ • Try alt contact│               │  via Blair Voice AI    │
+       │    └──────────────────┘               │  agent)                │
+       │                                       └────────────────────────┘
+       │
+       │
+       └──────────────────────────────────────▶ ┌──────────────────┐
+                   (If criteria not met)        │    DECLINED      │
+                                                │ (Reason captured)│
+                                                └──────────────────┘
 ```
 
 ### 4.3 Document Splitting Flow
@@ -282,6 +280,7 @@ Every screen follows this visual priority:
         │  Fax B: Pages 3-4, Patient B, linked to original│
         │                                                  │
         │  Both added to worklist for processing          │
+        │  Fax sender flagged for faxing error            │
         └─────────────────────────────────────────────────┘
 ```
 
@@ -432,15 +431,14 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 │  ┌────────────────────────────┐ ┌────────────────────────────┐  │
 │  │ REFERRAL PIPELINE         │ │ STAFF PRODUCTIVITY         │  │
 │  │                           │ │                            │  │
-│  │ Triage    ████████ 45     │ │ Name     Faxes  Time  SLA │  │
+│  │ Triage        ████████ 45 │ │ Name     Faxes  Time  SLA │  │
 │  │      ↓ 89%                │ │ Sarah    32     3.1m  96% │  │
-│  │ Incomplete ██████  40     │ │ Mike     28     4.5m  91% │  │
+│  │ Incomplete    ██████  40  │ │ Mike     28     4.5m  91% │  │
 │  │      ↓ 75%                │ │ Lisa     24     3.8m  94% │  │
-│  │ Pending   ████    30      │ │ John     18     5.2m  88% │  │
+│  │ Pending Review ████   30  │ │ John     18     5.2m  88% │  │
 │  │      ↓ 100%               │ │                            │  │
-│  │ Complete  ████    30      │ │                            │  │
-│  │      ↓ 93%                │ │                            │  │
-│  │ Booked    ███     28      │ │                            │  │
+│  │ Routed to     ███     28  │ │                            │  │
+│  │ Cerebrum                  │ │                            │  │
 │  └────────────────────────────┘ └────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -466,15 +464,15 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 **Layout:**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ 📥 Fax Inbox - 47 faxes  │  🔍 Search...  │ STAT(3) Urgent(8)  │
+│ 📥 Fax Inbox - 47 faxes  │  🔍 Search...  │ Urgent(11)         │
 │                          │                 │ Need Review(12) 🔄 │
 ├─────────────────────────────────────────────────────────────────┤
 │ Priority │ Sender        │ Patient     │ Doc Type  │ SLA   │ ⋯ │
 ├─────────────────────────────────────────────────────────────────┤
-│ 🔴 STAT  │ Dr. Patel     │ John Smith  │ Referral  │ 0:23  │ ⋯ │
-│ 🔴 STAT  │ City Hospital │ Jane Doe    │ Referral  │ 0:45  │ ⋯ │
-│ 🟠 Urgent│ Med Centre    │ Bob Wilson  │ ECG       │ 1:15  │ ⋯ │
-│ 🟠 Urgent│ Dr. Kim       │ Mary Brown  │ Referral  │ 2:30  │ ⋯ │
+│ 🔴 Urgent│ Dr. Patel     │ John Smith  │ Referral  │ 0:23  │ ⋯ │
+│ 🔴 Urgent│ City Hospital │ Jane Doe    │ Referral  │ 0:45  │ ⋯ │
+│ 🔴 Urgent│ Med Centre    │ Bob Wilson  │ ECG       │ 1:15  │ ⋯ │
+│ 🔴 Urgent│ Dr. Kim       │ Mary Brown  │ Referral  │ 2:30  │ ⋯ │
 │ ⚪ Routine│ Family Clinic │ Tom Lee     │ Bloodwork │ 5:45  │ ⋯ │
 │ ⚪ Routine│ Dr. Singh     │ Sue Chen    │ Consult   │ 7:20  │ ⋯ │
 │ ...                                                              │
@@ -487,7 +485,7 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 
 | Column | Content | Sorting |
 |--------|---------|---------|
-| Priority | Badge: STAT (red), Urgent (orange), Routine (gray) | STAT first |
+| Priority | Badge: Urgent (red), Routine (gray) | Urgent first |
 | Sender | Physician/clinic name | Alphabetical |
 | Patient | Matched patient name or "Unknown" | Alphabetical |
 | Doc Type | AI-detected type with confidence | By type |
@@ -496,7 +494,6 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 | Status | Auto-filed, Pending, In Progress, Flagged | By status |
 
 **Filtering Logic:**
-- STAT button: Toggle to show only STAT priority
 - Urgent button: Toggle to show only Urgent priority
 - Need Review: Shows pending-review status items
 - Search: Matches patient, sender, doc type, fax number
@@ -511,18 +508,18 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 📋 Worklist - 32 items  │ All(32) Unclassified(8) Referral(24) │
-│                         │ STAT(2) Urgent(5)     │ 12m avg │ 🔄 │
+│                         │ Urgent(7)               │ 12m avg │ 🔄 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │ 🔴 STAT │ Dr. Patel → John Smith                         │   │
+│  │ 🔴 Urgent │ Dr. Patel → John Smith                       │   │
 │  │ Cardiology Referral • 5 pages • 23 min ago               │   │
 │  │ ████████░░ 80% complete │ 2 pending comms                │   │
 │  │                                          [ Open ]        │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │ 🟠 Urgent │ Unknown sender                    🔒 Sarah   │   │
+│  │ 🔴 Urgent │ Unknown sender                    🔒 Sarah   │   │
 │  │ Unclassified • 3 pages • 45 min ago                      │   │
 │  │ Suggested: ECG Report (87% confidence)                   │   │
 │  │                                          [ Locked ]      │   │
@@ -555,33 +552,34 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 
 **Layout:**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ ← Back │ Dr. Patel Cardiology │ 🔴 STAT │ SLA: 0:23 │🔒 Locked │
-├────────┬──────────────────────────────────────────────┬─────────┤
-│        │                                              │ REVIEW  │
-│ Page 1 │  ┌────────────────────────────────────────┐  │         │
-│ [████] │  │                                        │  │ Type:   │
-│        │  │        FAX DOCUMENT CONTENT            │  │ [Referral ▼]
-│ Page 2 │  │                                        │  │         │
-│ [████] │  │     (Main document viewing area)       │  │ Conf: 94%
-│        │  │                                        │  │ ████████░░
-│ Page 3 │  │                                        │  │         │
-│ [████] │  │                                        │  │ Priority│
-│        │  │                                        │  │ [STAT ▼]│
-│ Page 4 │  │                                        │  │         │
-│ [████] │  │                                        │  │ Patient:│
-│        │  │                                        │  │ John Smi│
-│ Page 5 │  │                                        │  │ [Matched]
-│ [████] │  └────────────────────────────────────────┘  │ 95% conf│
-│        │                                              │         │
-│        │    < Page 3 of 5 >  │ 🔍- 100% 🔍+ │ ↻ │ 🖨  │ Notes:  │
-│        │                                              │ [      ]│
-│        │                                              │         │
-│        │                                              │[Complete]
-│        │                                              │[Referral]
-│        │                                              │[Split]  │
-│        │                                              │[Flag]   │
-└────────┴──────────────────────────────────────────────┴─────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ← Back │ Dr. Patel Cardiology │ 🔴 Urgent │ SLA: 0:23 │                         🔒 Locked    │
+├────────┬─────────────────────────────────────────────────────────────┬────────────────────────┤
+│        │                                                             │ REVIEW                │
+│ Page 1 │  ┌───────────────────────────────────────────────────────┐  │                       │
+│ [████] │  │                                                       │  │ Type:                 │
+│        │  │                                                       │  │ [Referral ▼]          │
+│ Page 2 │  │                                                       │  │                       │
+│ [████] │  │                                                       │  │ Conf: 94%             │
+│        │  │                                                       │  │ ████████░░            │
+│ Page 3 │  │                  FAX DOCUMENT CONTENT                 │  │                       │
+│ [████] │  │                                                       │  │ Priority:             │
+│        │  │               (Main document viewing area)            │  │ [Urgent ▼]            │
+│ Page 4 │  │                                                       │  │                       │
+│ [████] │  │                                                       │  │ Patient:              │
+│        │  │                                                       │  │ John Smith            │
+│ Page 5 │  │                                                       │  │ [Matched] 95% conf    │
+│ [████] │  │                                                       │  │                       │
+│        │  │                                                       │  │ Notes:                │
+│        │  │                                                       │  │ [                  ]  │
+│        │  │                                                       │  │                       │
+│        │  │                                                       │  │ ─────────────────     │
+│        │  └───────────────────────────────────────────────────────┘  │                       │
+│        │                                                             │ [Mark Complete]       │
+│        │    < Page 3 of 5 >  │ 🔍- 100% 🔍+ │ ↻ │ 🖨                 │ [Mark as Referral]    │
+│        │                                                             │ [Split Document]      │
+│        │                                                             │ [Flag for Review]     │
+└────────┴─────────────────────────────────────────────────────────────┴────────────────────────┘
 ```
 
 **Three-Panel Layout:**
@@ -589,8 +587,8 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 | Panel | Content | Behavior |
 |-------|---------|----------|
 | Left (w-24) | Page thumbnails | Click to navigate |
-| Center (flex-1) | Document viewer | Zoom, rotate, navigate |
-| Right (w-80) | Review form | Classify and save |
+| Center (flex-1) | Document viewer (equal width with review) | Zoom, rotate, navigate |
+| Right (equal width) | Review form | Classify and save |
 
 **Action Buttons:**
 
@@ -609,46 +607,52 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 
 **Layout:**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ ← Back │ John Smith │ 🔴 STAT │ 2 awaiting │ Dr. Patel │ 23m ago│
-├─────────────────────────────────────────────────────────────────┤
-│ [Triage]──[Incomplete]──[Pending]──[Complete]──[Routed]──[Booked]
-│     ✓          ●                                                │
-├────────┬──────────────────────────────────────────────┬─────────┤
-│ DOCS   │                                              │ Review │ Comms │ Timeline
-│        │                                              │   ●    │       │
-│ ─────  │                                              ├─────────────────┤
-│Original│  ┌────────────────────────────────────────┐  │ COMPLETENESS    │
-│Referral│  │                                        │  │ ████████░░ 80%  │
-│ pg 1-3 │  │        DOCUMENT VIEWER                 │  │                 │
-│        │  │                                        │  │ ✓ Referral Form │
-│ ─────  │  │     (Selected document page)           │  │ ✓ Patient Demo  │
-│Response│  │                                        │  │ ? ECG (uncertain)
-│ pg 1   │  │                                        │  │ ✗ BNP Labs      │
-│        │  │                                        │  │ ✗ Echo Report   │
-│ ─────  │  │                                        │  │                 │
-│ECG     │  └────────────────────────────────────────┘  │ [Request Missing]
-│ pg 1   │                                              │                 │
-│        │    < Page 2 of 3 >  │ 🔍 100% │ ↻ │ 🖨      │ ───────────────  │
-│        │                                              │ REASON          │
-│        │                                              │ Chest pain,     │
-│        │                                              │ shortness of    │
-│        │                                              │ breath on       │
-│        │                                              │ exertion        │
-│        │                                              │                 │
-│        │                                              │ CONDITIONS      │
-│        │                                              │ [HTN] [DM2]     │
-│        │                                              │                 │
-│        │                                              │ ───────────────  │
-│        │                                              │[Accept][Decline]│
-└────────┴──────────────────────────────────────────────┴─────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ← Back │ John Smith │ 🔴 Urgent │ 2 awaiting │ Dr. Patel │                          23m ago │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Triage]──[Incomplete]──[Pending Review]──[Routed to Cerebrum]                                 │
+│     ✓          ●                                                                               │
+├────────┬─────────────────────────────────────────────────────────────┬────────────────────────┤
+│ DOCS   │                                                             │ Review │ Comms │ Time │
+│        │                                                             │   ●    │       │      │
+│ ─────  │                                                             ├────────────────────────┤
+│Original│  ┌───────────────────────────────────────────────────────┐  │ COMPLETENESS          │
+│Referral│  │                                                       │  │ ████████░░ 80%        │
+│ pg 1-3 │  │                                                       │  │                       │
+│        │  │                                                       │  │ ✓ Referral Form       │
+│ ─────  │  │                  DOCUMENT VIEWER                      │  │ ✓ Patient Demo        │
+│Response│  │                                                       │  │ ? ECG (uncertain)     │
+│ pg 1   │  │               (Selected document page)                │  │ ✗ BNP Labs            │
+│        │  │                                                       │  │ ✗ Echo Report         │
+│ ─────  │  │                                                       │  │                       │
+│ECG     │  │                                                       │  │ [Request Missing]     │
+│ pg 1   │  │                                                       │  │                       │
+│        │  │                                                       │  │ ─────────────────     │
+│        │  └───────────────────────────────────────────────────────┘  │ REASON                │
+│        │                                                             │ Chest pain,           │
+│        │    < Page 2 of 3 >  │ 🔍 100% │ ↻ │ 🖨                      │ shortness of          │
+│        │                                                             │ breath on             │
+│        │                                                             │ exertion              │
+│        │                                                             │                       │
+│        │                                                             │ CONDITIONS            │
+│        │                                                             │ [HTN] [DM2]           │
+│        │                                                             │                       │
+│        │                                                             │ ─────────────────     │
+│        │                                                             │ URGENCY               │
+│        │                                                             │ [Urgent ▼]            │
+│        │                                                             │ [Confirm Urgency]     │
+│        │                                                             │                       │
+│        │                                                             │ ─────────────────     │
+│        │                                                             │ [Route to Cerebrum]   │
+│        │                                                             │ [Decline Referral]    │
+└────────┴─────────────────────────────────────────────────────────────┴────────────────────────┘
 ```
 
 **Tabs:**
 
 | Tab | Content |
 |-----|---------|
-| Review | Completeness panel, clinical summary, routing controls |
+| Review | Completeness panel, clinical summary, urgency controls, routing controls |
 | Comms | Communication thread (outbound faxes, calls, emails) |
 | Timeline | Chronological activity log |
 
@@ -659,6 +663,15 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 | Found | ✓ | Green | View page, Unmark |
 | Missing | ✗ | Red | Request, Mark Found |
 | Uncertain | ? | Amber | Verify: Mark Found or Mark Missing |
+
+**Action Buttons:**
+
+| Button | Purpose | Result |
+|--------|---------|--------|
+| Request Missing | Open compose panel | Send fax/email/call for missing items |
+| Confirm Urgency | Lock in urgency level | Creates Zendesk ticket + Slack notification if urgent |
+| Route to Cerebrum | Send to EMR | Routes to provider inbox in Cerebrum |
+| Decline Referral | Reject referral | Opens decline reason modal |
 
 ---
 
@@ -792,44 +805,454 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
 
 #### 5.8.1 Auto-File Settings (`/settings/auto-file`)
 
+**Purpose:** Configure AI automation thresholds at both global and per-document-type levels
+
+**Layout:**
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ Auto-File Settings                                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│ AUTO-FILE ENGINE                                                │
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ Enable Auto-Filing              [━━━━━●━] ON                │ │
-│ │                                                             │ │
-│ │ Global Confidence Threshold                                 │ │
-│ │ [━━━━━━━●━━━] 85%                                          │ │
-│ │ Items below this confidence require manual review          │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-│                                                                  │
-│ SHADOW MODE                                                     │
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ 🛡️ Enable Shadow Mode           [━━━━━●━] ON               │ │
-│ │                                                             │ │
-│ │ ⚠️ Shadow Mode Active                                       │ │
-│ │ AI will process and classify documents but ALL items       │ │
-│ │ will require manual review. Use this for pilot testing.    │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-│                                                                  │
-│ PERFORMANCE                                                     │
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐│
-│ │  Accuracy   │ │ Auto-Filed  │ │ Overridden  │ │ Time Saved  ││
-│ │    94%      │ │    1,234    │ │     67      │ │  2.3 min    ││
-│ │             │ │  this week  │ │  by staff   │ │  per fax    ││
-│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘│
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Auto-File Settings                                                                   │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│ AUTO-FILE ENGINE                                                                    │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Enable Auto-Filing              [━━━━━●━] ON                                    │ │
+│ │                                                                                 │ │
+│ │ Global Confidence Threshold                                                     │ │
+│ │ [━━━━━━━●━━━] 85%                                                              │ │
+│ │ Items below this confidence require manual review                              │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ SHADOW MODE                                                                         │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ 🛡️ Enable Shadow Mode           [━━━━━●━] ON                                   │ │
+│ │                                                                                 │ │
+│ │ ⚠️ Shadow Mode Active                                                          │ │
+│ │ AI will process and classify documents but ALL items                           │ │
+│ │ will require manual review. Use this for pilot testing.                        │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ DOCUMENT TYPE SETTINGS                                                              │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Document Type      │ Category    │ Auto-File │ Threshold │ Override            │ │
+│ ├────────────────────┼─────────────┼───────────┼───────────┼─────────────────────┤ │
+│ │ Referral           │ Clinical    │ [ON]      │ [85%]     │ ☐ Use global        │ │
+│ │ ECG                │ Diagnostic  │ [ON]      │ [90%]     │ ☐ Use global        │ │
+│ │ Bloodwork          │ Lab         │ [ON]      │ [90%]     │ ☐ Use global        │ │
+│ │ Echo Report        │ Diagnostic  │ [ON]      │ [88%]     │ ☐ Use global        │ │
+│ │ Consult Note       │ Clinical    │ [ON]      │ [85%]     │ ☐ Use global        │ │
+│ │ Insurance Form     │ Admin       │ [OFF]     │ [80%]     │ ☐ Use global        │ │
+│ │ Authorization      │ Admin       │ [OFF]     │ [75%]     │ ☐ Use global        │ │
+│ │ Unknown/Other      │ N/A         │ [OFF]     │ [--]      │ Always manual       │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ PERFORMANCE                                                                         │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │
+│ │  Accuracy   │ │ Auto-Filed  │ │ Overridden  │ │ Time Saved  │                    │
+│ │    94%      │ │    1,234    │ │     67      │ │  2.3 min    │                    │
+│ │             │ │  this week  │ │  by staff   │ │  per fax    │                    │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘                    │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Document Type Settings Explanation:**
+
+Each document type can be configured independently with:
+- **Auto-File Toggle**: Enable/disable auto-filing for this specific type
+- **Threshold**: Confidence percentage required for auto-filing (can differ from global)
+- **Override**: Option to always use the global threshold instead of per-type setting
+
+This granular control allows clinics to be more conservative with certain document types (e.g., higher threshold for ECGs) while being more permissive with others (e.g., lower threshold for admin forms).
 
 ---
 
-## 6. Data Model & Relationships
+## 6. Integration Architecture
 
-### 6.1 Entity Relationship Diagram
+### 6.1 System Context Diagram
+
+```
+                    ┌──────────────────────────────────────────┐
+                    │           EXTERNAL SYSTEMS               │
+                    └──────────────────────────────────────────┘
+                                        │
+        ┌───────────────┬───────────────┼───────────────┬───────────────┐
+        │               │               │               │               │
+        ▼               ▼               ▼               ▼               ▼
+   ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
+   │  SRFax  │    │Cerebrum │    │Salesforce│   │ Zendesk │    │  Slack  │
+   │ (Fax)   │    │  (EMR)  │    │  (CRM)   │   │(Support)│    │(Notify) │
+   └────┬────┘    └────┬────┘    └────┬────┘    └────┬────┘    └────┬────┘
+        │              │              │              │              │
+        │   Webhook    │   REST API   │   REST API   │   REST API   │  Webhook
+        │              │              │              │              │
+        ▼              ▼              ▼              ▼              ▼
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │                          BLAIR API LAYER                            │
+   │                                                                     │
+   │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │
+   │  │  Fax Ingest │ │  Patient    │ │  Physician  │ │  Outbound   │  │
+   │  │  Service    │ │  Matching   │ │  Lookup     │ │  Comms      │  │
+   │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │
+   └─────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │                        BLAIR WEB APPLICATION                        │
+   │                                                                     │
+   │  ┌─────────────────────────────────────────────────────────────┐   │
+   │  │  Next.js Frontend (React 19, Tailwind, Radix UI)           │   │
+   │  └─────────────────────────────────────────────────────────────┘   │
+   │                                                                     │
+   │  ┌─────────────────────────────────────────────────────────────┐   │
+   │  │  Zustand State Management                                   │   │
+   │  │  • LockStore  • ReferralStore  • InboxStore  • SettingsStore│   │
+   │  └─────────────────────────────────────────────────────────────┘   │
+   └─────────────────────────────────────────────────────────────────────┘
+```
+
+### 6.2 Integration Summary
+
+| System | Purpose | Data Flow |
+|--------|---------|-----------|
+| **SRFax** | Fax reception | Incoming webhook with fax data + images |
+| **Cerebrum** | Patient matching | Query patient by name/DOB, get record |
+| **Salesforce** | Physician data | Lookup referring physician, clinic info |
+| **Zendesk** | Support tickets | Create ticket for escalations |
+| **Slack** | Notifications | Send alerts for urgent items, SLA warnings |
+
+---
+
+### 6.3 Cerebrum EMR Integration (`/integrations/cerebrum`)
+
+**Purpose:** Monitor and manage the connection to Cerebrum EMR for patient matching and document routing.
+
+The Cerebrum EMR integration is the most critical integration point in Blair. All referrals must ultimately route to the appropriate provider's inbox within Cerebrum, and patient matching accuracy directly impacts workflow efficiency. This page provides visibility into the health of this critical connection and allows staff to troubleshoot issues without needing to contact IT.
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Cerebrum EMR Integration                                          🟢 Connected     │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│ CONNECTION STATUS                                                                   │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │
+│ │   Status    │ │  Last Sync  │ │  Patients   │ │   Errors    │                    │
+│ │  🟢 Online  │ │   2m ago    │ │   1,234     │ │     3       │                    │
+│ │             │ │             │ │   matched   │ │  this week  │                    │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘                    │
+│                                                                                      │
+│ PATIENT MATCH LOG                                                                   │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Time        │ Patient Search    │ Result      │ Confidence │ Action              │ │
+│ ├─────────────┼───────────────────┼─────────────┼────────────┼─────────────────────┤ │
+│ │ 10:32 AM    │ John Smith, DOB   │ ✓ Matched   │ 95%        │ Auto-linked         │ │
+│ │ 10:28 AM    │ Jane Doe, OHIP    │ ✓ Matched   │ 98%        │ Auto-linked         │ │
+│ │ 10:15 AM    │ Bob Wilson        │ ⚠ Multiple  │ 72%        │ Manual review req   │ │
+│ │ 09:58 AM    │ Mary Brown        │ ✗ Not Found │ --         │ Create new patient? │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ ROUTED DOCUMENTS (Today)                                                            │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Time        │ Document          │ Patient       │ Provider Inbox │ Status        │ │
+│ ├─────────────┼───────────────────┼───────────────┼────────────────┼───────────────┤ │
+│ │ 10:45 AM    │ Referral #R-1234  │ John Smith    │ Dr. Chen       │ ✓ Delivered   │ │
+│ │ 10:30 AM    │ ECG Report        │ Jane Doe      │ Dr. Patel      │ ✓ Delivered   │ │
+│ │ 10:15 AM    │ Lab Results       │ Tom Lee       │ Dr. Kim        │ ⏳ Pending    │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ ERROR QUEUE                                                                         │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ ⚠ 3 items require attention                                                     │ │
+│ │                                                                                  │ │
+│ │ • Referral #R-1201 - Provider not found in Cerebrum (Dr. Martinez)             │ │
+│ │ • ECG #E-892 - Patient record locked by another user                           │ │
+│ │ • Lab #L-445 - Connection timeout during upload (retry available)              │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│                        [ Test Connection ]    [ View Full Logs ]                    │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why This Page Exists:**
+
+Cerebrum is the source of truth for patient data. When Blair cannot match a patient or route a document, it creates friction in the workflow. This dashboard allows clerks and administrators to:
+- See at a glance whether the EMR connection is healthy
+- Review recent patient matching results and identify patterns
+- Track document routing to ensure referrals are reaching provider inboxes
+- Address errors before they become SLA breaches
+
+---
+
+### 6.4 Zendesk Integration (`/integrations/zendesk`)
+
+**Purpose:** Unified view of support tickets created by Blair for tracking urgent referrals, SLA breaches, and escalations.
+
+The Zendesk integration serves as the ticketing backbone for exception handling. When an urgent referral is confirmed, an SLA is breached, or a document processing error occurs, Blair automatically creates a Zendesk ticket. This page provides visibility into these tickets without requiring staff to switch to the Zendesk portal, keeping them focused in the Blair workflow.
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Zendesk Integration                                               🟢 Connected     │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│ TICKET OVERVIEW                                                                     │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │
+│ │   Open      │ │   Urgent    │ │   Needs     │ │   Avg       │                    │
+│ │    12       │ │     4       │ │  Response   │ │  Response   │                    │
+│ │   tickets   │ │   tickets   │ │     6       │ │   1.2 hrs   │                    │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘                    │
+│                                                                                      │
+│ FILTER: [All ▼] [Auto-Created ▼] [Source: Blair ▼]                     🔍 Search   │
+│                                                                                      │
+│ RECENT TICKETS                                                                      │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │                                                                                  │ │
+│ │ ┌────────────────────────────────────────────────────────────────────────────┐  │ │
+│ │ │ 🔴 Urgent │ #ZD-4521 │ Urgent Referral: John Smith                        │  │ │
+│ │ │ Created: 10 min ago │ Source: Auto-created │ Linked: Referral #R-1234     │  │ │
+│ │ │ Status: Open │ Assignee: Unassigned                                       │  │ │
+│ │ └────────────────────────────────────────────────────────────────────────────┘  │ │
+│ │                                                                                  │ │
+│ │ ┌────────────────────────────────────────────────────────────────────────────┐  │ │
+│ │ │ 🟠 High │ #ZD-4518 │ SLA Warning: Referral approaching deadline           │  │ │
+│ │ │ Created: 45 min ago │ Source: Auto-created │ Linked: Referral #R-1198     │  │ │
+│ │ │ Status: Open │ Assignee: Sarah M.                                         │  │ │
+│ │ └────────────────────────────────────────────────────────────────────────────┘  │ │
+│ │                                                                                  │ │
+│ │ ┌────────────────────────────────────────────────────────────────────────────┐  │ │
+│ │ │ ⚪ Normal │ #ZD-4515 │ Document Processing Error: OCR Failed              │  │ │
+│ │ │ Created: 2 hours ago │ Source: Auto-created │ Linked: Fax #F-892          │  │ │
+│ │ │ Status: Pending │ Assignee: Mike T.                                       │  │ │
+│ │ └────────────────────────────────────────────────────────────────────────────┘  │ │
+│ │                                                                                  │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ AUTO-CREATION RULES                                                                 │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Trigger                        │ Priority │ Auto-Assign │ Status               │ │
+│ ├────────────────────────────────┼──────────┼─────────────┼──────────────────────┤ │
+│ │ Urgent referral confirmed      │ Urgent   │ Unassigned  │ ✓ Active             │ │
+│ │ SLA warning (< 1 hour)         │ High     │ Unassigned  │ ✓ Active             │ │
+│ │ SLA breach                     │ Urgent   │ Manager     │ ✓ Active             │ │
+│ │ Document processing error      │ Normal   │ IT Team     │ ✓ Active             │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│                              [ Open in Zendesk ]    [ Configure Rules ]             │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why This Page Exists:**
+
+Zendesk tickets ensure that urgent items and exceptions don't get lost. By surfacing these tickets within Blair:
+- Staff can see open issues at a glance without context-switching
+- Clicking a linked referral/fax takes them directly to the source
+- Auto-creation rules are transparent, so staff understand why tickets appear
+- The sidebar badge count reflects open tickets, creating urgency
+
+---
+
+### 6.5 Slack Integration (`/integrations/slack`)
+
+**Purpose:** Log of all Slack notifications sent by Blair, providing visibility into team alerts and ensuring notifications are delivered.
+
+The Slack integration keeps the care team informed about urgent events in real-time. When an urgent referral is confirmed, Blair posts to #urgent-faxes. When SLAs are approaching breach, team leads receive warnings. This page logs all notifications so staff can verify what was sent and troubleshoot delivery issues.
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Slack Integration                                                 🟢 Connected     │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│ NOTIFICATION STATS                                                                  │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │
+│ │   Today     │ │  Unhandled  │ │   Failed    │ │   Weekly    │                    │
+│ │    23       │ │     2       │ │     0       │ │   Report    │                    │
+│ │  messages   │ │   alerts    │ │   sends     │ │   Sent ✓    │                    │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘                    │
+│                                                                                      │
+│ FILTER: [All Activity ▼] [Alerts ▼] [Digests ▼]                        🔍 Search   │
+│                                                                                      │
+│ TODAY                                                                               │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ ┌────────────────────────────────────────────────────────────────────────────┐  │ │
+│ │ │ 🔴 #urgent-faxes │ 10:32 AM                                                │  │ │
+│ │ │ 🚨 URGENT REFERRAL: John Smith from Dr. Patel                              │  │ │
+│ │ │ Reason: Chest pain, SOB • SLA: 24 hours                                   │  │ │
+│ │ │ Linked: Referral #R-1234 │ Status: ✓ Delivered                            │  │ │
+│ │ └────────────────────────────────────────────────────────────────────────────┘  │ │
+│ │                                                                                  │ │
+│ │ ┌────────────────────────────────────────────────────────────────────────────┐  │ │
+│ │ │ 🟠 #sla-alerts │ 10:15 AM                                                  │  │ │
+│ │ │ ⚠️ SLA WARNING: Referral #R-1198 has 1 hour remaining                      │  │ │
+│ │ │ Patient: Jane Doe • Assigned: Sarah M.                                     │  │ │
+│ │ │ Status: ✓ Delivered │ Action: Pending                                      │  │ │
+│ │ └────────────────────────────────────────────────────────────────────────────┘  │ │
+│ │                                                                                  │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ YESTERDAY                                                                           │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ ┌────────────────────────────────────────────────────────────────────────────┐  │ │
+│ │ │ 📊 #daily-digest │ 6:00 PM                                                 │  │ │
+│ │ │ 📋 Daily Summary: 47 faxes processed, 12 referrals routed                  │  │ │
+│ │ │ SLA Compliance: 94% • Avg Processing Time: 4.2 min                        │  │ │
+│ │ │ Status: ✓ Delivered                                                        │  │ │
+│ │ └────────────────────────────────────────────────────────────────────────────┘  │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ CONFIGURED CHANNELS                                                                 │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Channel             │ Alert Types              │ Status                        │ │
+│ ├─────────────────────┼──────────────────────────┼───────────────────────────────┤ │
+│ │ #urgent-faxes       │ Urgent referrals         │ ✓ Active                      │ │
+│ │ #sla-alerts         │ SLA warnings, breaches   │ ✓ Active                      │ │
+│ │ #daily-digest       │ Daily summary            │ ✓ Active                      │ │
+│ │ #weekly-reports     │ Weekly analytics         │ ✓ Active                      │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│                           [ Test Notification ]    [ Configure Channels ]           │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why This Page Exists:**
+
+Slack notifications are ephemeral—once sent, they can get buried in channel history. This page provides:
+- A permanent log of what notifications were sent and when
+- Visibility into unhandled alerts (items that were notified but not yet actioned)
+- Delivery status to troubleshoot if messages aren't reaching Slack
+- Channel configuration overview so administrators can manage alert routing
+
+---
+
+### 6.6 Salesforce Integration (`/integrations/salesforce`)
+
+**Purpose:** Sync status with Salesforce CRM for physician and clinic data management.
+
+The Salesforce integration provides physician directory data that enriches the fax processing workflow. When a referral arrives, Blair queries Salesforce to look up the referring physician's contact information, clinic affiliation, and communication preferences. This page monitors the sync health and helps troubleshoot lookup failures.
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Salesforce Integration                                            🟢 Connected     │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│ SYNC STATUS                                                                         │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │
+│ │  Last Sync  │ │ Physicians  │ │   Clinics   │ │   Errors    │                    │
+│ │   15m ago   │ │    2,847    │ │     342     │ │      0      │                    │
+│ │             │ │   records   │ │   records   │ │  this week  │                    │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘                    │
+│                                                                                      │
+│ RECENT LOOKUPS                                                                      │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Time        │ Query                │ Result       │ Source                       │ │
+│ ├─────────────┼──────────────────────┼──────────────┼──────────────────────────────┤ │
+│ │ 10:32 AM    │ Dr. Sarah Patel      │ ✓ Found      │ Fax from (416) 555-0123     │ │
+│ │ 10:28 AM    │ City Medical Clinic  │ ✓ Found      │ Fax from (905) 555-9876     │ │
+│ │ 10:15 AM    │ Dr. Martinez         │ ✗ Not Found  │ Fax from (647) 555-4321     │ │
+│ │ 09:58 AM    │ CPSO #12345          │ ✓ Found      │ OCR extraction              │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ SYNC SCHEDULE                                                                       │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Sync Type        │ Frequency    │ Last Run      │ Records    │ Status           │ │
+│ ├──────────────────┼──────────────┼───────────────┼────────────┼──────────────────┤ │
+│ │ Full Sync        │ Daily 2 AM   │ Today 2:00 AM │ 3,189      │ ✓ Success        │ │
+│ │ Incremental      │ Every 15 min │ 10:30 AM      │ 12         │ ✓ Success        │ │
+│ │ On-Demand Lookup │ Real-time    │ 10:32 AM      │ 1          │ ✓ Success        │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ UNMATCHED PHYSICIANS                                                                │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ ⚠ 3 physicians not found in Salesforce                                          │ │
+│ │                                                                                  │ │
+│ │ • Dr. Martinez - Fax: (647) 555-4321 - Last seen: 2 hours ago                  │ │
+│ │   [Add to Salesforce] [Ignore]                                                  │ │
+│ │ • Dr. Unknown - Fax: (416) 555-0000 - Last seen: Yesterday                     │ │
+│ │   [Add to Salesforce] [Ignore]                                                  │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│                              [ Force Sync ]    [ Open in Salesforce ]               │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why This Page Exists:**
+
+Accurate physician data is essential for routing communications. When Blair cannot find a referring physician in Salesforce:
+- Follow-up communications may fail (wrong fax number, no email)
+- Referral context is incomplete (missing clinic affiliation)
+- Staff must manually research contact information
+
+This page surfaces unmatched physicians so administrators can proactively add them to Salesforce, improving future matching rates.
+
+---
+
+### 6.7 SRFax Integration (`/integrations/srfax`)
+
+**Purpose:** Monitor incoming fax reception and troubleshoot delivery issues.
+
+SRFax is the entry point for all documents into Blair. When faxes fail to arrive or arrive corrupted, the entire workflow stalls. This page provides visibility into the fax reception pipeline, allowing staff to verify that faxes are being received and identify transmission issues.
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ SRFax Integration                                                 🟢 Connected     │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│ RECEPTION STATS                                                                     │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │
+│ │   Today     │ │  This Week  │ │   Failed    │ │   Avg Size  │                    │
+│ │    47       │ │     312     │ │      2      │ │  4.2 pages  │                    │
+│ │   faxes     │ │    faxes    │ │ receptions  │ │   per fax   │                    │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘                    │
+│                                                                                      │
+│ FAX LINES                                                                           │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Line Number      │ Name              │ Today │ Status    │ Last Received        │ │
+│ ├──────────────────┼───────────────────┼───────┼───────────┼──────────────────────┤ │
+│ │ (416) 555-9876   │ Main Fax          │ 32    │ 🟢 Active │ 5 min ago            │ │
+│ │ (416) 555-9877   │ Referrals Only    │ 12    │ 🟢 Active │ 15 min ago           │ │
+│ │ (416) 555-9878   │ Lab Results       │ 3     │ 🟢 Active │ 1 hour ago           │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ RECENT ACTIVITY                                                                     │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Time        │ From              │ Line          │ Pages │ Status                │ │
+│ ├─────────────┼───────────────────┼───────────────┼───────┼───────────────────────┤ │
+│ │ 10:32 AM    │ (416) 555-0123    │ Main Fax      │ 5     │ ✓ Received            │ │
+│ │ 10:28 AM    │ (905) 555-9876    │ Referrals     │ 3     │ ✓ Received            │ │
+│ │ 10:15 AM    │ (647) 555-4321    │ Main Fax      │ 8     │ ✓ Received            │ │
+│ │ 09:58 AM    │ Unknown           │ Lab Results   │ 1     │ ⚠ Low Quality         │ │
+│ │ 09:45 AM    │ (416) 555-0000    │ Main Fax      │ --    │ ✗ Failed              │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│ FAILED RECEPTIONS                                                                   │
+│ ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ ⚠ 2 failed receptions today                                                      │ │
+│ │                                                                                  │ │
+│ │ • 09:45 AM from (416) 555-0000 - Error: Connection dropped during transmission │ │
+│ │   [Request Resend] [Mark Resolved]                                              │ │
+│ │ • 08:12 AM from Unknown - Error: Invalid fax format                             │ │
+│ │   [Mark Resolved]                                                                │ │
+│ └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│                              [ Test Reception ]    [ View Full Logs ]               │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why This Page Exists:**
+
+Fax reception issues can be invisible—if a fax never arrives, staff may not know to expect it. This page provides:
+- Confirmation that faxes are being received from expected senders
+- Visibility into failed transmissions so staff can request resends
+- Per-line activity to identify if a specific fax number has issues
+- Quality indicators to flag poorly-scanned documents before AI processing fails
+
+---
+
+## 7. Data Model & Relationships
+
+### 7.1 Entity Relationship Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -868,15 +1291,15 @@ User is viewing referral with missing items (e.g., ECG, Bloodwork)
    │    PAGES     │                         │   TEMPLATE   │
    │ (thumbnails) │                         │ (used for)   │
    └──────────────┘                         └──────────────┘
-                                                    │
-                                                    ▼
+                                                   │
+                                                   ▼
                          ┌──────────────┐   ┌──────────────┐
                          │   TIMELINE   │   │VOICE CALL    │
                          │   EVENTS     │   │ DETAILS      │
                          └──────────────┘   └──────────────┘
 ```
 
-### 6.2 Core Data Types
+### 7.2 Core Data Types
 
 ```typescript
 // Fax - The core incoming document entity
@@ -885,7 +1308,7 @@ interface Fax {
   receivedAt: string;
   pageCount: number;
   pages: FaxPage[];
-  priority: "stat" | "urgent" | "routine";
+  priority: "urgent" | "routine";
   senderName: string;
   senderFaxNumber: string;
   faxLineId: string;
@@ -912,9 +1335,9 @@ interface Referral {
   referringPhysicianId: string;
   referringPhysicianName: string;
   clinicName?: string;
-  status: "triage" | "incomplete" | "pending-response" | "complete" |
-          "routed" | "accepted" | "declined" | "booked";
-  priority: "stat" | "urgent" | "routine";
+  status: "triage" | "incomplete" | "pending-review" | "routed-to-cerebrum" |
+          "accepted" | "declined" | "booked";
+  priority: "urgent" | "routine";
   reasonForReferral: string;
   conditions: string[];
   medications: string[];
@@ -973,7 +1396,7 @@ interface CompletenessItem {
 
 ---
 
-## 7. RFP Requirements Fulfillment
+## 8. RFP Requirements Fulfillment
 
 ### Requirements Checklist
 
@@ -983,344 +1406,12 @@ interface CompletenessItem {
 | 2 | **Splitting files into individual documents by patient and category** | Split tool at `/split/[id]` with visual page strip. Click between pages to create split markers. System creates separate fax records for each segment. | ✅ Complete |
 | 3 | **Sorting individual documents into appropriate subfolders** | Automatic classification into document types. Documents grouped by type in referral detail view (Original Referral, Response, Additional). Auto-filing when confidence exceeds threshold. | ✅ Complete |
 | 4 | **Searchable interface for locating faxes by patient, provider, fax line, document type** | Global search on Inbox page. Matches: patient name, sender, document type, fax number, description. Filter buttons for status and priority. | ✅ Complete |
-| 5 | **Real worklist/work queue model with SLAs, prioritization, and record locking** | Worklist at `/worklist` with category tabs. Visual SLA timers with color changes. Priority badges (STAT/Urgent/Routine). Lock indicators show who is working on item. Warning banners prevent concurrent edits. | ✅ Complete |
+| 5 | **Real worklist/work queue model with SLAs, prioritization, and record locking** | Worklist at `/worklist` with category tabs. Visual SLA timers with color changes. Priority badges (Urgent/Routine). Lock indicators show who is working on item. Warning banners prevent concurrent edits. | ✅ Complete |
 | 6 | **Improved OCR/LLM accuracy with hybrid approach for cost management** | Confidence scores displayed for all AI detections. Low-confidence items flagged for manual review. Shadow mode for pilot testing. Performance metrics on dashboard. | ✅ Complete |
 | 7 | **Clear integration points with SRFax, Cerebrum, Salesforce, Zendesk, Slack** | Integration settings page at `/settings/integrations`. Status indicators for each integration. Modular architecture ready for API connections. | ✅ Architecture Ready |
-| 8 | **Canadian data residency and healthcare document experience** | Designed for Canadian cardiology clinics. Ontario health card (OHIP) support. Canadian physician identifiers (CPSO). Provincial health number fields. | ✅ Complete |
+| 8 | **Canadian data residency and healthcare document experience** | Designed for Canadian specialty clinics. Ontario health card (OHIP) support. Canadian physician identifiers (CPSO). Provincial health number fields. | ✅ Complete |
 | 9 | **Pilot-first path for accuracy and throughput validation** | Shadow mode in auto-file settings. All items require manual review when enabled. Performance metrics tracked (accuracy, overrides, time saved). | ✅ Complete |
 | 10 | **Outbound Communication Module for emails/faxes to obtain missing info** | Compose slide-over with channel selection (Fax/Email/Phone). Template-based messaging. Missing items checkboxes. Follow-up scheduling. AI agent call option. Communication thread in referral view. | ✅ Complete |
-
-### Detailed Requirement Implementation
-
-#### 1. End-to-End Fax Indexing
-
-**How it works:**
-- Fax arrives via configured fax line (SRFax integration point)
-- AI engine processes immediately:
-  - OCR extracts all text (including handwritten)
-  - Document type detection (Referral, ECG, Bloodwork, etc.)
-  - Patient info extraction (name, DOB, phone)
-  - Priority assignment based on clinical urgency indicators
-- Confidence scores (0-100%) assigned to each detection
-- Items below threshold → Worklist for manual review
-- Items above threshold → Auto-file (unless Shadow Mode enabled)
-
-**UI Elements:**
-- Confidence bar on fax cards
-- Document type dropdown (pre-filled, editable)
-- Patient match badge with confidence %
-- AI badge showing automated detection
-
----
-
-#### 2. Document Splitting
-
-**How it works:**
-- Clerk identifies multi-patient fax in viewer
-- Clicks "Split Document" → Opens `/split/[id]`
-- Page strip shows all pages horizontally
-- Hover between pages shows (+) icon
-- Click creates split marker (✂️ icon)
-- Segments automatically recalculated
-- Each segment shows:
-  - Page range
-  - Detected patient (from OCR)
-  - Detected document type
-- Save creates separate fax records
-- Both linked to original transmission ID
-
-**UI Elements:**
-- Horizontal page strip with thumbnails
-- Split zone indicators between pages
-- Segment cards with metadata
-- Color-coded segments for visual clarity
-
----
-
-#### 3. Document Sorting
-
-**How it works:**
-- AI assigns document type to each fax
-- Types organized by category:
-  - Clinical: Referral, ECG, Echo, Bloodwork, etc.
-  - Administrative: Authorization, Insurance, etc.
-- Auto-filed items sorted to appropriate "folder" (type)
-- Referral detail view groups documents:
-  - Original Referral (blue header)
-  - Response (green header)
-  - Additional Documents (gray header)
-
-**UI Elements:**
-- Document type dropdown with search
-- Type badges on fax cards
-- Grouped document list in referral view
-- Color-coded headers by document category
-
----
-
-#### 4. Searchable Interface
-
-**How it works:**
-- Search bar on Inbox page (top center)
-- Debounced input (300ms delay)
-- Searches across:
-  - Patient name (first, last)
-  - Sender/physician name
-  - Document type
-  - Fax number
-  - Description/notes
-- Results update in real-time
-- Keyboard shortcut: ⌘K
-
-**UI Elements:**
-- Search input with placeholder
-- Keyboard shortcut indicator
-- Clear button when search active
-- Result count in header
-- Filter reset button
-
-**Filters:**
-- Status dropdown (Auto-filed, Pending, Flagged, etc.)
-- Priority quick buttons (STAT, Urgent)
-- "Need Review" toggle
-
----
-
-#### 5. Worklist with SLA & Locking
-
-**How it works:**
-
-**SLA System:**
-- Each document type has SLA times per priority:
-  - STAT: 30 minutes
-  - Urgent: 2 hours
-  - Routine: 8 hours
-- Timer starts when fax received
-- Visual progression:
-  - Green: > 50% time remaining
-  - Yellow: 25-50% remaining
-  - Red: < 25% remaining
-  - Breached: Past deadline (flashing)
-
-**Record Locking:**
-- Lock acquired when user opens fax/referral
-- Lock released when user navigates away
-- Zustand store tracks all active locks
-- Other users see:
-  - "🔒 Locked by [Name]" on cards
-  - Warning banner on detail page
-  - View-only capability while locked
-
-**UI Elements:**
-- SLA timer column in tables
-- Color-coded countdown display
-- Lock indicator badges
-- Warning banner for locked items
-- "Locked by you" green badge for owner
-
----
-
-#### 6. Hybrid AI Approach
-
-**How it works:**
-
-**Confidence Thresholds:**
-- Global threshold configurable (default: 85%)
-- Per-document-type thresholds available
-- Items below threshold → Manual review queue
-- Items above threshold → Auto-file (if enabled)
-
-**Shadow Mode (Pilot):**
-- Toggle in settings
-- When enabled:
-  - AI still processes everything
-  - Nothing auto-filed
-  - All items appear in review queue
-  - Staff can verify AI accuracy
-- Performance tracked:
-  - Accuracy % (AI correct vs overridden)
-  - Override count by staff
-  - Time saved per fax
-
-**UI Elements:**
-- Shadow Mode toggle in settings
-- Warning banner when active
-- Performance metrics dashboard
-- Override tracking
-
----
-
-#### 7. Integration Points
-
-**Architecture Ready:**
-
-| System | Integration Purpose | Connection Point |
-|--------|---------------------|------------------|
-| SRFax | Incoming fax reception | Webhook/API |
-| Cerebrum | EMR patient matching | REST API |
-| Salesforce | CRM physician data | REST API |
-| Zendesk | Support ticket creation | REST API |
-| Slack | Notifications/alerts | Webhook |
-
-**UI Elements:**
-- Integrations page at `/settings/integrations`
-- Status cards per integration
-- Connection test buttons
-- Last sync timestamp
-- Error indicators
-
----
-
-#### 8. Canadian Healthcare
-
-**How it works:**
-- Fields designed for Canadian context:
-  - OHIP (Ontario Health Insurance Plan) number
-  - CPSO (College of Physicians and Surgeons of Ontario) number
-  - Provincial health number fields
-  - Canadian address format (Province, Postal Code)
-- Terminology matches Canadian healthcare:
-  - "Referring physician" not "PCP"
-  - Provincial health card
-  - Canadian clinic naming conventions
-
-**Data Fields:**
-- Patient: PHN (Provincial Health Number), OHIP
-- Physician: CPSO Number, Billing Number
-- Address: Province (not State), Postal Code (not ZIP)
-
----
-
-#### 9. Pilot Path
-
-**How it works:**
-
-**Shadow Mode Workflow:**
-1. Enable Shadow Mode in settings
-2. AI processes all faxes normally
-3. Classifications shown but not auto-filed
-4. All items appear in Worklist
-5. Staff reviews and confirms/corrects
-6. System tracks:
-   - AI accuracy rate
-   - Correction patterns
-   - Processing time impact
-
-**Metrics Tracked:**
-- Auto-file accuracy (before corrections)
-- Staff override rate
-- Time to process (with/without AI assist)
-- Confidence distribution
-
-**Graduation Path:**
-1. Run shadow mode for X weeks
-2. Review accuracy metrics
-3. Adjust confidence thresholds
-4. Disable shadow mode
-5. Monitor auto-file rate
-
----
-
-#### 10. Outbound Communication Module
-
-**How it works:**
-
-**Communication Types:**
-- Missing Items Request (most common)
-- Referral Received Confirmation
-- Decline Notification
-- Appointment Confirmation
-- Follow-up Reminder
-
-**Channels:**
-- Fax: Traditional fax to physician's office
-- Email: Direct email to physician/clinic
-- Phone:
-  - Human-initiated call
-  - AI Agent automated call
-
-**AI Agent Calls:**
-- Automated voice calls using AI
-- Pre-generated script based on template
-- Requests specific missing items
-- Transcription captured and stored
-- Outcome tracked (confirmed, voicemail, no-answer)
-
-**Escalation Strategies:**
-- Fax → Wait → Voice (if no response)
-- Voice → Wait → Fax (alternative)
-- Multi-fax (send multiple reminders)
-
-**Follow-up Scheduling:**
-- Set reminder days (default: 3)
-- Choose follow-up method
-- Automatic escalation triggers
-
-**UI Elements:**
-- Compose slide-over panel
-- Channel tabs (Fax/Email/Phone)
-- AI Agent toggle for phone
-- Missing items checkboxes
-- Template-based message body
-- Follow-up scheduler
-- Communication thread in referral view
-- Status badges (Sent, Awaiting, Received, etc.)
-
----
-
-## 8. Integration Architecture
-
-### 8.1 System Context Diagram
-
-```
-                    ┌──────────────────────────────────────────┐
-                    │           EXTERNAL SYSTEMS               │
-                    └──────────────────────────────────────────┘
-                                        │
-        ┌───────────────┬───────────────┼───────────────┬───────────────┐
-        │               │               │               │               │
-        ▼               ▼               ▼               ▼               ▼
-   ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
-   │  SRFax  │    │Cerebrum │    │Salesforce│   │ Zendesk │    │  Slack  │
-   │ (Fax)   │    │  (EMR)  │    │  (CRM)   │   │(Support)│    │(Notify) │
-   └────┬────┘    └────┬────┘    └────┬────┘    └────┬────┘    └────┬────┘
-        │              │              │              │              │
-        │   Webhook    │   REST API   │   REST API   │   REST API   │  Webhook
-        │              │              │              │              │
-        ▼              ▼              ▼              ▼              ▼
-   ┌─────────────────────────────────────────────────────────────────────┐
-   │                          BLAIR API LAYER                            │
-   │                                                                     │
-   │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │
-   │  │  Fax Ingest │ │  Patient    │ │  Physician  │ │  Outbound   │  │
-   │  │  Service    │ │  Matching   │ │  Lookup     │ │  Comms      │  │
-   │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │
-   └─────────────────────────────────────────────────────────────────────┘
-                                        │
-                                        ▼
-   ┌─────────────────────────────────────────────────────────────────────┐
-   │                        BLAIR WEB APPLICATION                        │
-   │                                                                     │
-   │  ┌─────────────────────────────────────────────────────────────┐   │
-   │  │  Next.js Frontend (React 19, Tailwind, Radix UI)           │   │
-   │  └─────────────────────────────────────────────────────────────┘   │
-   │                                                                     │
-   │  ┌─────────────────────────────────────────────────────────────┐   │
-   │  │  Zustand State Management                                   │   │
-   │  │  • LockStore  • ReferralStore  • InboxStore  • SettingsStore│   │
-   │  └─────────────────────────────────────────────────────────────┘   │
-   └─────────────────────────────────────────────────────────────────────┘
-```
-
-### 8.2 Integration Details
-
-| System | Purpose | Data Flow |
-|--------|---------|-----------|
-| **SRFax** | Fax reception | Incoming webhook with fax data + images |
-| **Cerebrum** | Patient matching | Query patient by name/DOB, get record |
-| **Salesforce** | Physician data | Lookup referring physician, clinic info |
-| **Zendesk** | Support tickets | Create ticket for escalations |
-| **Slack** | Notifications | Send alerts for STAT items, SLA warnings |
 
 ---
 
@@ -1359,8 +1450,8 @@ interface CompletenessItem {
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js 16.1.6 (App Router) |
-| Frontend | React 19.2.3, TypeScript |
+| Framework | Next.js 15 (App Router) |
+| Frontend | React 19, TypeScript |
 | State | Zustand 5.0.11 |
 | UI Components | Radix UI + Tailwind CSS |
 | Tables | TanStack React Table 8.21.3 |
@@ -1374,8 +1465,9 @@ interface CompletenessItem {
 **Zustand Stores:**
 1. **LockStore** - Document locking for concurrency
 2. **ReferralStore** - Referral CRUD operations
-3. **InboxStore** - Fax filtering and sorting (future)
-4. **SettingsStore** - User preferences
+3. **IntegrationStore** - Zendesk/Slack dynamic items
+4. **InboxStore** - Fax filtering and sorting
+5. **SettingsStore** - User preferences
 
 ### 10.3 Performance Considerations
 
@@ -1386,34 +1478,12 @@ interface CompletenessItem {
 
 ---
 
-## 11. Future Roadmap
-
-### Phase 2 Enhancements
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Batch Operations | Select multiple faxes for bulk actions | High |
-| Advanced Reporting | Export analytics to CSV/PDF | High |
-| Real-time Sync | WebSocket updates for live queue | Medium |
-| Mobile App | React Native companion | Medium |
-| AI Confidence Tuning | Admin tool to retrain on corrections | Medium |
-
-### Phase 3 Enhancements
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Predictive Analytics | Predict acceptance likelihood | Low |
-| White-label | Multi-tenant SaaS version | Low |
-| Document OCR Editor | Mark up and correct detected text | Low |
-| Approval Workflows | Multi-step approval for high-risk | Low |
-
----
-
 ## Document History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | Feb 6, 2026 | Blair Team | Initial PRD |
+| 1.1 | Feb 13, 2026 | Blair Team | Removed STAT priority (consolidated with Urgent), updated target users, revised pipeline diagrams, added integration page specifications |
 
 ---
 
