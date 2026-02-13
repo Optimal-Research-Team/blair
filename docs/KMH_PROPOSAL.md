@@ -20,7 +20,7 @@ Of all document types, **referrals represent the most complex workflow challenge
 
 ### Our Solution: Blair
 
-Blair is an AI-powered fax sorting and referral management system purpose-built for cardiology clinics. Blair reduces manual triage time by **90%** while ensuring **100% referral completeness** before physician review. With intelligent document classification, real-time SLA tracking, and automated follow-up communications, Blair transforms your fax inbox from a bottleneck into a streamlined workflow.
+Blair is an AI-powered fax sorting and referral management system purpose-built for cardiology clinics. Blair substantially reduces manual triage time while ensuring referral completeness before physician review. With intelligent document classification, real-time SLA tracking, and automated follow-up communications, Blair transforms your fax inbox from a bottleneck into a streamlined workflow.
 
 ---
 
